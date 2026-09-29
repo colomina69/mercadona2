@@ -47,3 +47,6 @@
  ✓ Compiled in 3.2s (1927 modules)
  GET /productos/BOLSA%20PLASTICO 200 in 1047ms
  GET /productos/PAN%20TOST%20CEREAL%2FSEMI 200 in 248ms
+ ○ Compiling /api/auth/refresh ...
+ ✓ Compiled /api/auth/refresh in 918ms (1069 modules)
+ POST /api/auth/refresh 200 in 1138ms
