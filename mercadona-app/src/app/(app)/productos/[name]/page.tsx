@@ -14,9 +14,17 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 export default async function ProductDetailPage({ params }: { params: { name: string } }) {
   const insforge = createInsForgeServerClient()
-  const name = params.name
+  const name = safeDecode(params.name)
 
   const { data: histData } = await insforge.database.rpc('mercadona_product_history', { p_name: name })
   const history = (histData ?? []) as HistoryRow[]

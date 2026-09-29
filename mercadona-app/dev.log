@@ -42,3 +42,8 @@
  ✓ Compiled in 1342ms (2079 modules)
  GET /login 200 in 116ms
  GET / 307 in 82ms
+ GET /productos 200 in 851ms
+ GET /productos/BOLSA%20PLASTICO 200 in 660ms
+ ✓ Compiled in 3.2s (1927 modules)
+ GET /productos/BOLSA%20PLASTICO 200 in 1047ms
+ GET /productos/PAN%20TOST%20CEREAL%2FSEMI 200 in 248ms
