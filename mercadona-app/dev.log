@@ -1,0 +1,44 @@
+
+> mercadona-app@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 1792ms (117 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 8.9s (700 modules)
+ GET /login 200 in 9682ms
+ ✓ Compiled in 1009ms (262 modules)
+ ○ Compiling / ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled / in 17.5s (1830 modules)
+ GET / 307 in 18179ms
+ GET /login 200 in 234ms
+ ○ Compiling /sign-up ...
+ ✓ Compiled /sign-up in 932ms (1187 modules)
+ GET /sign-up 200 in 1170ms
+ ✓ Compiled /favicon.ico in 372ms (470 modules)
+ GET /favicon.ico 200 in 627ms
+ POST /sign-up 200 in 436ms
+ ✓ Compiled / in 404ms (1115 modules)
+ ○ Compiling /tickets ...
+ ✓ Compiled /tickets in 903ms (1839 modules)
+ ○ Compiling /tickets/[id] ...
+ ✓ Compiled /tickets/[id] in 4.9s (2055 modules)
+ ○ Compiling /productos/[name] ...
+ ✓ Compiled /productos/[name] in 1631ms (2062 modules)
+ ○ Compiling /productos ...
+ ✓ Compiled /productos in 1201ms (2069 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1717ms (1218 modules)
+ GET /login 200 in 2346ms
+ ✓ Compiled in 3.6s (2184 modules)
+ ✓ Compiled in 1540ms (2079 modules)
+ ✓ Compiled in 1342ms (2079 modules)
+ GET /login 200 in 116ms
+ GET / 307 in 82ms
