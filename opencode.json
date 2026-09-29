@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "insforge": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@insforge/mcp@latest"
+      ],
+      "environment": {
+        "API_KEY": "ik_06af335eeadbdfe2f6c12fa82c1d152c512a516af32ba808a37bfbfdb6ee0900",
+        "API_BASE_URL": "https://insforge.benicolo.com"
+      }
+    },
+    "n8n-mcp": {
+      "type": "remote",
+      "url": "https://n8n.benicolo.com/mcp-server/http",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYTAyMmQ0Yi0yZDJiLTRjMzgtOTlmOC01OWFhNmY3ODgzZWUiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6Ijg2MDhjNzczLTY1YTItNDAxYy05ZGYyLWVjOTQwMjA3NGQ2YSIsImlhdCI6MTc5MDY4OTU2MH0.sPX-tu_fGwzUKFgNSRPb7hd_jfjxY8uw_0u4RQMDLZM"
+      }
+    }
+  }
+}
