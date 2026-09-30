@@ -78,3 +78,23 @@ export function PriceHistoryChart({
     </ResponsiveContainer>
   )
 }
+
+export function MonthlyBankChart({
+  data,
+}: {
+  data: { month: string; inflow: number; outflow: number }[]
+}) {
+  const rows = data.map((d) => ({ ...d, label: monthLabel(d.month) }))
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+        <XAxis dataKey="label" fontSize={11} interval="preserveStartEnd" tickLine={false} />
+        <YAxis fontSize={11} tickLine={false} axisLine={false} />
+        <Tooltip formatter={(v) => eur(Number(v))} />
+        <Bar dataKey="inflow" name="Ingresos" fill="#059669" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="outflow" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}

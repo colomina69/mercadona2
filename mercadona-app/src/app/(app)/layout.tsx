@@ -28,6 +28,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <Link href="/productos" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
                 Productos
               </Link>
+              <Link href="/movimientos" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                Movimientos
+              </Link>
+              <Link href="/categorias" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                Categorías
+              </Link>
             </nav>
           </div>
           <form action={signOutAction} className="flex items-center gap-3">
