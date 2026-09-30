@@ -65,7 +65,7 @@ export function TicketFilters({ initial }: { initial: Initial }) {
         </div>
       </div>
       <div className="mt-4 flex gap-2">
-        <button type="submit" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <button type="submit" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
           Filtrar
         </button>
         <button

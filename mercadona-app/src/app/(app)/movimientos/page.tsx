@@ -92,7 +92,7 @@ export default async function MovimientosPage({
 
       {summary && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Stat label="Ingresos" value={eur(summary.totals.inflow)} tone="positive" />
             <Stat label="Gastos" value={eur(summary.totals.outflow)} tone="negative" />
             <Stat label="Neto" value={eur(summary.totals.net)} tone={summary.totals.net >= 0 ? 'positive' : 'negative'} />
@@ -140,8 +140,62 @@ export default async function MovimientosPage({
         initial={{ q, from, to, category, min: searchParams.min, max: searchParams.max }}
       />
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      {/* Mobile: cards */}
+      <div className="space-y-3 md:hidden">
+        {transactions.map((t) => {
+          const label = t.concept ?? t.description ?? '—'
+          const ticketCount = (t.links ?? []).filter((l) => l.target_type === 'ticket').length
+          const kindColor = t.category?.kind === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+          return (
+            <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-800">{label}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {dateOnly(t.operation_date)}
+                    {t.reference ? ` · ${t.reference}` : ''}
+                  </p>
+                </div>
+                <span className={`shrink-0 font-semibold ${(t.amount ?? 0) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {eur(t.amount)}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {t.category ? (
+                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${kindColor}`}>
+                      {t.category.name}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-300">Sin categoría</span>
+                  )}
+                  {ticketCount > 0 && (
+                    <span className="inline-block rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                      {ticketCount} ticket{ticketCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <Link
+                  href={`/movimientos/${t.id}`}
+                  className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-slate-200 px-3 text-sm text-emerald-700 hover:bg-slate-50"
+                >
+                  Editar
+                </Link>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">Saldo: {eur(t.balance)}</p>
+            </div>
+          )
+        })}
+        {transactions.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400">
+            {listRes.error ? `Error: ${listRes.error.message}` : 'Sin movimientos. Sube un extracto .txt para empezar.'}
+          </p>
+        )}
+      </div>
+
+      {/* Desktop / tablet: table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Fecha</th>
@@ -165,7 +219,7 @@ export default async function MovimientosPage({
                     {t.concept ? (
                       <div className="font-medium text-slate-800">{t.concept}</div>
                     ) : (
-                      <div className="text-slate-600">{t.description ?? '—'}</div>
+                      <div className="text-slate-600">{label}</div>
                     )}
                     <div className="text-xs text-slate-400">{t.reference ?? ''}</div>
                   </td>
@@ -220,12 +274,12 @@ export default async function MovimientosPage({
         </span>
         <div className="flex gap-2">
           {page > 1 && (
-            <Link href={buildUrl(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50">
+            <Link href={buildUrl(page - 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
               ← Anterior
             </Link>
           )}
           {page < pages && (
-            <Link href={buildUrl(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50">
+            <Link href={buildUrl(page + 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
               Siguiente →
             </Link>
           )}

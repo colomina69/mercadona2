@@ -20,8 +20,42 @@ export default async function ProductsPage({ searchParams }: { searchParams: { q
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      {/* Mobile: cards */}
+      <div className="space-y-3 md:hidden">
+        {products.map((p) => (
+          <div key={p.product_name} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <Link
+              href={`/productos/${encodeURIComponent(p.product_name)}`}
+              className="font-medium text-slate-800 hover:text-emerald-700"
+            >
+              {p.product_name}
+            </Link>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+              <span>{num(p.purchases, 0)} compras</span>
+              <span>Últ.: {dateOnly(p.last_date)}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                <p className="text-xs text-slate-400">Precio últ.</p>
+                <p className="font-medium">{eur(p.last_price)}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                <p className="text-xs text-slate-400">Precio medio</p>
+                <p className="text-slate-500">{eur(p.avg_price)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {products.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400">
+            {error ? `Error: ${error.message}` : 'Sin resultados'}
+          </p>
+        )}
+      </div>
+
+      {/* Desktop / tablet: table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+        <table className="w-full min-w-[600px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Producto</th>

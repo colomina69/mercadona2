@@ -7,11 +7,11 @@
   - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 13.4s
+ ✓ Ready in 3s
  ○ Compiling /src/middleware ...
- ✓ Compiled /src/middleware in 1838ms (117 modules)
+ ✓ Compiled /src/middleware in 1111ms (117 modules)
  ○ Compiling /login ...
- ✓ Compiled /login in 16s (658 modules)
- GET /login 200 in 16534ms
- ✓ Compiled in 790ms (241 modules)
+ ✓ Compiled /login in 6.4s (658 modules)
+ GET /login 200 in 6818ms
+ ✓ Compiled in 628ms (241 modules)
 <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)

@@ -61,8 +61,41 @@ export default async function TicketsPage({
       <h1 className="text-xl font-semibold">Tickets</h1>
       <TicketFilters initial={{ q, from, to, store, min: searchParams.min, max: searchParams.max }} />
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      {/* Mobile: cards */}
+      <div className="space-y-3 md:hidden">
+        {tickets.map((t) => (
+          <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-slate-800">{t.store_name ?? '—'}</p>
+                {t.store_city ? <p className="text-xs text-slate-400">{t.store_city}</p> : null}
+                <p className="mt-0.5 text-xs text-slate-400">{dateTime(t.purchased_at)}</p>
+              </div>
+              <span className="shrink-0 font-semibold text-slate-800">{eur(t.total)}</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="truncate text-xs text-slate-400">
+                {t.item_count ?? '—'} art.{t.ticket_number ? ` · ${t.ticket_number}` : ''}
+              </span>
+              <Link
+                href={`/tickets/${t.id}`}
+                className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-slate-200 px-3 text-sm text-emerald-700 hover:bg-slate-50"
+              >
+                Ver
+              </Link>
+            </div>
+          </div>
+        ))}
+        {tickets.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400">
+            {error ? `Error: ${error.message}` : 'Sin resultados'}
+          </p>
+        )}
+      </div>
+
+      {/* Desktop / tablet: table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Fecha</th>
@@ -108,12 +141,12 @@ export default async function TicketsPage({
         </span>
         <div className="flex gap-2">
           {page > 1 && (
-            <Link href={buildUrl(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50">
+            <Link href={buildUrl(page - 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
               ← Anterior
             </Link>
           )}
           {page < pages && (
-            <Link href={buildUrl(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50">
+            <Link href={buildUrl(page + 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
               Siguiente →
             </Link>
           )}
