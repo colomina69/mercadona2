@@ -43,3 +43,24 @@ export function monthLabel(month: string): string {
   const idx = Number(m) - 1
   return `${names[idx] ?? m} ${y?.slice(2) ?? ''}`.trim()
 }
+
+export function fixed(value: number | null | undefined, decimals: number): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value)
+}
+
+export function kwh(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(value)} kWh`
+}
+
+export function eurPerKwh(value: number | null | undefined): string {
+  return value === null || value === undefined || Number.isNaN(value) ? '—' : `${fixed(value, 5)} €/kWh`
+}
+
+export function eurPerKwDay(value: number | null | undefined): string {
+  return value === null || value === undefined || Number.isNaN(value) ? '—' : `${fixed(value, 6)} €/kW·día`
+}

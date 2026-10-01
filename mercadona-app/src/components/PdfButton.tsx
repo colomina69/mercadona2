@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { getInsforgeBrowser } from '@/lib/insforge/client'
 
-export function PdfButton({ pdfKey }: { pdfKey: string }) {
+export function PdfButton({ pdfKey, bucket = 'mercadona', label = 'Ver PDF original' }: { pdfKey: string; bucket?: string; label?: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -12,7 +12,7 @@ export function PdfButton({ pdfKey }: { pdfKey: string }) {
     setError(null)
     try {
       const insforge = getInsforgeBrowser()
-      const { data, error } = await insforge.storage.from('mercadona').download(pdfKey)
+      const { data, error } = await insforge.storage.from(bucket).download(pdfKey)
       if (error || !data) {
         setError(error?.message ?? 'No se pudo descargar el PDF')
         setLoading(false)
@@ -33,7 +33,7 @@ export function PdfButton({ pdfKey }: { pdfKey: string }) {
         disabled={loading}
         className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
       >
-        {loading ? 'Abriendo…' : 'Ver PDF original'}
+        {loading ? 'Abriendo…' : label}
       </button>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>

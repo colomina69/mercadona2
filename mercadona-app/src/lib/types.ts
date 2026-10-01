@@ -125,3 +125,113 @@ export type BankSummary = {
   monthly: { month: string; inflow: number; outflow: number }[]
   by_category: { category: string; kind: 'expense' | 'income'; total: number; count: number }[]
 }
+
+export type IberdrolaContract = {
+  id: string
+  contract_number: string
+  label: string | null
+  cups: string | null
+  supply_address: string | null
+  city: string | null
+  titular: string | null
+  nif: string | null
+  tariff: string | null
+  market: string | null
+  plan: string | null
+  contracted_power_punta: number | null
+  contracted_power_valle: number | null
+}
+
+export type IberdrolaInvoice = {
+  id: string
+  contract_id: string | null
+  contract_number: string | null
+  invoice_number: string
+  issue_date: string | null
+  period_start: string | null
+  period_end: string | null
+  due_date: string | null
+  tariff: string | null
+  days_billed: number | null
+  total: number | null
+  subtotal: number | null
+  energy_amount: number | null
+  charges_amount: number | null
+  services_amount: number | null
+  tax_amount: number | null
+  consumption_kwh: number | null
+  cups: string | null
+  pdf_key: string | null
+  pdf_url: string | null
+  contract?: { label: string | null; contract_number: string } | null
+}
+
+export type IberdrolaInvoiceLine = {
+  id: string
+  invoice_id: string
+  line_no: number
+  grp: string | null
+  line_type: string | null
+  tramo: string | null
+  period: string | null
+  concept: string | null
+  detail: string | null
+  quantity: number | null
+  unit: string | null
+  unit_price: number | null
+  days: number | null
+  amount: number | null
+  tax_base: number | null
+  vat_rate: number | null
+}
+
+export type IberdrolaConsumption = {
+  id: string
+  invoice_id: string
+  tramo: string
+  kwh: number | null
+}
+
+export type IberdrolaSummary = {
+  totals: {
+    invoices: number
+    kwh: number
+    total: number
+    energy: number
+    eur_per_kwh: number | null
+    first_invoice: string | null
+    last_invoice: string | null
+  }
+  by_contract: {
+    contract_id: string | null
+    contract_number: string | null
+    label: string
+    tariff: string | null
+    invoices: number
+    kwh: number
+    total: number
+    energy: number
+    eur_per_kwh: number | null
+  }[]
+  power_by_contract: {
+    contract_id: string | null
+    avg_eur_per_kw_day: number | null
+    punta: number | null
+    valle: number | null
+  }[]
+  monthly: { month: string; kwh: number; total: number; energy: number }[]
+  consumption_by_tramo: { tramo: string; kwh: number }[]
+}
+
+export type InvoiceCandidate = {
+  id: string
+  invoice_number: string
+  issue_date: string | null
+  period_start: string | null
+  period_end: string | null
+  total: number | null
+  consumption_kwh: number | null
+  contract_number: string | null
+  date_diff: number
+  linked: boolean
+}

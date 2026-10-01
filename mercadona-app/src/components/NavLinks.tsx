@@ -8,6 +8,8 @@ const LINKS = [
   { href: '/tickets', label: 'Tickets' },
   { href: '/productos', label: 'Productos' },
   { href: '/movimientos', label: 'Movimientos' },
+  { href: '/facturas', label: 'Facturas' },
+  { href: '/contratos', label: 'Contratos' },
   { href: '/categorias', label: 'Categorías' },
 ]
 
