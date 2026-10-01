@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
 import type { IberdrolaContract, IberdrolaInvoice, IberdrolaSummary } from '@/lib/types'
-import { eur, num, dateOnly, kwh, eurPerKwh } from '@/lib/format'
+import { eur, num, dateOnly, kwh, eurPerKwh, eurPerKwDay } from '@/lib/format'
 import { MonthlyInvoiceChart } from '@/components/charts'
 import { InvoiceFilters } from '@/components/InvoiceFilters'
 
-const PAGE_SIZE = 25
+const MAX_ROWS = 500
 const COLS = '*, contract:iberdrola_contracts(label, contract_number)'
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -17,10 +17,83 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
+function perKwh(inv: IberdrolaInvoice): number | null {
+  return inv.consumption_kwh && inv.consumption_kwh > 0 && inv.energy_amount != null ? inv.energy_amount / inv.consumption_kwh : null
+}
+
+function InvoiceTable({ invoices }: { invoices: IberdrolaInvoice[] }) {
+  return (
+    <>
+      {/* Mobile cards */}
+      <div className="space-y-3 p-3 md:hidden">
+        {invoices.map((inv) => (
+          <div key={inv.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-800">{inv.invoice_number}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{dateOnly(inv.issue_date)}</p>
+              </div>
+              <span className="shrink-0 font-semibold text-slate-800">{eur(inv.total)}</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500">
+                {kwh(inv.consumption_kwh)} · {eurPerKwh(perKwh(inv))}
+              </span>
+              <Link
+                href={`/facturas/${inv.id}`}
+                className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-slate-200 px-3 text-sm text-sky-700 hover:bg-slate-50"
+              >
+                Ver
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Emisión</th>
+              <th className="px-4 py-3">Periodo</th>
+              <th className="px-4 py-3 text-right">Consumo</th>
+              <th className="px-4 py-3 text-right">€/kWh</th>
+              <th className="px-4 py-3 text-right">Total</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {invoices.map((inv) => (
+              <tr key={inv.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div>{dateOnly(inv.issue_date)}</div>
+                  <div className="text-xs text-slate-400">{inv.invoice_number}</div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-slate-500">
+                  {dateOnly(inv.period_start)} – {dateOnly(inv.period_end)}
+                </td>
+                <td className="px-4 py-3 text-right">{kwh(inv.consumption_kwh)}</td>
+                <td className="px-4 py-3 text-right text-slate-600">{eurPerKwh(perKwh(inv))}</td>
+                <td className="px-4 py-3 text-right font-semibold">{eur(inv.total)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link href={`/facturas/${inv.id}`} className="text-sky-700 hover:underline">
+                    Ver
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
 export default async function FacturasPage({
   searchParams,
 }: {
-  searchParams: { contract?: string; q?: string; from?: string; to?: string; page?: string }
+  searchParams: { contract?: string; q?: string; from?: string; to?: string }
 }) {
   const insforge = createInsForgeServerClient()
 
@@ -28,8 +101,6 @@ export default async function FacturasPage({
   const q = searchParams.q ?? ''
   const from = searchParams.from ?? ''
   const to = searchParams.to ?? ''
-  const page = Math.max(1, Number.parseInt(searchParams.page ?? '1', 10) || 1)
-  const offset = (page - 1) * PAGE_SIZE
 
   const [summaryRes, contractsRes, listRes] = await Promise.all([
     insforge.database.rpc('iberdrola_summary', {
@@ -37,35 +108,50 @@ export default async function FacturasPage({
       p_from: from || null,
       p_to: to || null,
     }),
-    insforge.database.from('iberdrola_contracts').select('id, label, contract_number').order('contract_number'),
+    insforge.database.from('iberdrola_contracts').select('id, label, contract_number, tariff').order('contract_number'),
     (() => {
-      let query: any = insforge.database.from('iberdrola_invoices').select(COLS, { count: 'exact' })
+      let query: any = insforge.database.from('iberdrola_invoices').select(COLS)
       if (contract) query = query.eq('contract_id', contract)
       if (q) query = query.ilike('invoice_number', `%${q}%`)
       if (from) query = query.gte('issue_date', from)
       if (to) query = query.lte('issue_date', to)
-      return query.order('issue_date', { ascending: false }).range(offset, offset + PAGE_SIZE - 1)
+      return query.order('issue_date', { ascending: false }).limit(MAX_ROWS)
     })(),
   ])
 
   const summary = (summaryRes.data ?? null) as IberdrolaSummary | null
   const contracts = (contractsRes.data ?? []) as IberdrolaContract[]
   const invoices = (listRes.data ?? []) as IberdrolaInvoice[]
-  const total = listRes.count ?? invoices.length
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const buildUrl = (targetPage: number) => {
-    const params = new URLSearchParams()
-    if (contract) params.set('contract', contract)
-    if (q) params.set('q', q)
-    if (from) params.set('from', from)
-    if (to) params.set('to', to)
-    params.set('page', String(targetPage))
-    return `/facturas?${params.toString()}`
+  const totalsByContract = new Map((summary?.by_contract ?? []).map((b) => [b.contract_id ?? '', b]))
+  const powerByContract = new Map((summary?.power_by_contract ?? []).map((p) => [p.contract_id ?? '', p]))
+
+  const byContract = new Map<string, IberdrolaInvoice[]>()
+  for (const inv of invoices) {
+    const key = inv.contract_id ?? 'none'
+    const arr = byContract.get(key)
+    if (arr) arr.push(inv)
+    else byContract.set(key, [inv])
   }
 
-  const perKwh = (inv: IberdrolaInvoice) =>
-    inv.consumption_kwh && inv.consumption_kwh > 0 && inv.energy_amount != null ? inv.energy_amount / inv.consumption_kwh : null
+  const sections = contracts
+    .filter((c) => byContract.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      label: c.label ?? c.contract_number,
+      contract_number: c.contract_number,
+      tariff: c.tariff,
+      invoices: byContract.get(c.id)!,
+    }))
+  if (byContract.has('none')) {
+    sections.push({
+      id: 'none',
+      label: 'Sin contrato',
+      contract_number: '',
+      tariff: null,
+      invoices: byContract.get('none')!,
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -99,102 +185,65 @@ export default async function FacturasPage({
         initial={{ contract, q, from, to }}
       />
 
-      {/* Mobile cards */}
-      <div className="space-y-3 md:hidden">
-        {invoices.map((inv) => (
-          <div key={inv.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-800">{inv.contract?.label ?? inv.contract_number ?? 'Contrato'}</p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {dateOnly(inv.issue_date)} · {inv.invoice_number}
-                </p>
+      {sections.map((section) => {
+        const t = totalsByContract.get(section.id)
+        const p = powerByContract.get(section.id)
+        return (
+          <details key={section.id} open className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <summary className="cursor-pointer list-none p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold">
+                    {section.label}
+                    {section.contract_number ? (
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        Contrato {section.contract_number} · {section.tariff ?? '—'}
+                      </span>
+                    ) : null}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {section.invoices.length} factura{section.invoices.length === 1 ? '' : 's'} mostradas
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-slate-500 sm:grid-cols-4">
+                  <span>
+                    <span className="text-slate-400">Facturas:</span> {num(t?.invoices ?? section.invoices.length, 0)}
+                  </span>
+                  <span>
+                    <span className="text-slate-400">Consumo:</span> {kwh(t?.kwh ?? null)}
+                  </span>
+                  <span>
+                    <span className="text-slate-400">Total:</span> {eur(t?.total ?? null)}
+                  </span>
+                  <span>
+                    <span className="text-slate-400">€/kWh:</span> {eurPerKwh(t?.eur_per_kwh ?? null)}
+                  </span>
+                </div>
               </div>
-              <span className="shrink-0 font-semibold text-slate-800">{eur(inv.total)}</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">
-                {kwh(inv.consumption_kwh)} · {eurPerKwh(perKwh(inv))}
-              </span>
-              <Link
-                href={`/facturas/${inv.id}`}
-                className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-slate-200 px-3 text-sm text-sky-700 hover:bg-slate-50"
-              >
-                Ver
-              </Link>
-            </div>
-          </div>
-        ))}
-        {invoices.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400">
-            {listRes.error ? `Error: ${listRes.error.message}` : 'Sin facturas todavía.'}
-          </p>
-        )}
-      </div>
-
-      {/* Desktop table */}
-      <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Emisión</th>
-              <th className="px-4 py-3">Contrato</th>
-              <th className="px-4 py-3">Periodo</th>
-              <th className="px-4 py-3 text-right">Consumo</th>
-              <th className="px-4 py-3 text-right">€/kWh</th>
-              <th className="px-4 py-3 text-right">Total</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {invoices.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 whitespace-nowrap">{dateOnly(inv.issue_date)}</td>
-                <td className="px-4 py-3">
-                  <div className="font-medium">{inv.contract?.label ?? inv.contract_number ?? '—'}</div>
-                  <div className="text-xs text-slate-400">{inv.invoice_number}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-slate-500">
-                  {dateOnly(inv.period_start)} – {dateOnly(inv.period_end)}
-                </td>
-                <td className="px-4 py-3 text-right">{kwh(inv.consumption_kwh)}</td>
-                <td className="px-4 py-3 text-right text-slate-600">{eurPerKwh(perKwh(inv))}</td>
-                <td className="px-4 py-3 text-right font-semibold">{eur(inv.total)}</td>
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/facturas/${inv.id}`} className="text-sky-700 hover:underline">
-                    Ver
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                <span>
+                  <span className="text-slate-400">Potencia:</span> punta {eurPerKwDay(p?.punta ?? null)} · valle{' '}
+                  {eurPerKwDay(p?.valle ?? null)}
+                </span>
+                {section.id !== 'none' && (
+                  <Link href={`/contratos/${section.id}`} className="text-sky-700 hover:underline">
+                    Ver contrato →
                   </Link>
-                </td>
-              </tr>
-            ))}
-            {invoices.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                  {listRes.error ? `Error: ${listRes.error.message}` : 'Sin facturas todavía.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                )}
+              </div>
+            </summary>
+            <div className="border-t border-slate-100">
+              <InvoiceTable invoices={section.invoices} />
+            </div>
+          </details>
+        )
+      })}
 
-      <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>
-          {num(total, 0)} facturas · página {page} de {pages}
-        </span>
-        <div className="flex gap-2">
-          {page > 1 && (
-            <Link href={buildUrl(page - 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
-              ← Anterior
-            </Link>
-          )}
-          {page < pages && (
-            <Link href={buildUrl(page + 1)} className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 px-3 hover:bg-slate-50">
-              Siguiente →
-            </Link>
-          )}
-        </div>
-      </div>
+      {sections.length === 0 && (
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400">
+          {listRes.error ? `Error: ${listRes.error.message}` : 'Sin facturas todavía.'}
+        </p>
+      )}
     </div>
   )
 }
