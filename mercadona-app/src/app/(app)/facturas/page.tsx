@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { IberdrolaContract, IberdrolaInvoice, IberdrolaSummary } from '@/lib/types'
-import { eur, num, dateOnly, kwh, eurPerKwh, eurPerKwDay } from '@/lib/format'
-import { MonthlyInvoiceChart } from '@/components/charts'
+import type { IberdrolaContract, IberdrolaInvoice, IberdrolaPricePoint, IberdrolaSummary } from '@/lib/types'
+import { eur, num, dateOnly, kwh, eurPerKwh, eurPerKwDay, monthLabel } from '@/lib/format'
+import { MonthlyInvoiceChart, PriceLineChart } from '@/components/charts'
 import { InvoiceFilters } from '@/components/InvoiceFilters'
 
 const MAX_ROWS = 500
 const COLS = '*, contract:iberdrola_contracts(label, contract_number)'
+const ACCENTS = ['#0284c7', '#7c3aed', '#0891b2', '#db2777', '#059669']
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -102,7 +103,7 @@ export default async function FacturasPage({
   const from = searchParams.from ?? ''
   const to = searchParams.to ?? ''
 
-  const [summaryRes, contractsRes, listRes] = await Promise.all([
+  const [summaryRes, contractsRes, listRes, priceRes] = await Promise.all([
     insforge.database.rpc('iberdrola_summary', {
       p_contract_id: contract || null,
       p_from: from || null,
@@ -117,11 +118,26 @@ export default async function FacturasPage({
       if (to) query = query.lte('issue_date', to)
       return query.order('issue_date', { ascending: false }).limit(MAX_ROWS)
     })(),
+    insforge.database.rpc('iberdrola_price_history', { p_contract_id: contract || null }),
   ])
 
   const summary = (summaryRes.data ?? null) as IberdrolaSummary | null
   const contracts = (contractsRes.data ?? []) as IberdrolaContract[]
   const invoices = (listRes.data ?? []) as IberdrolaInvoice[]
+  const priceHistory = (priceRes.data ?? []) as IberdrolaPricePoint[]
+
+  const priceByContract = new Map<string, { label: string; energy: number | null; punta: number | null; valle: number | null }[]>()
+  for (const p of priceHistory) {
+    const key = p.contract_id ?? 'none'
+    const arr = priceByContract.get(key) ?? []
+    arr.push({
+      label: monthLabel(p.issue_date.slice(0, 7)),
+      energy: p.energy_eur_kwh,
+      punta: p.power_punta,
+      valle: p.power_valle,
+    })
+    priceByContract.set(key, arr)
+  }
 
   const totalsByContract = new Map((summary?.by_contract ?? []).map((b) => [b.contract_id ?? '', b]))
   const powerByContract = new Map((summary?.power_by_contract ?? []).map((p) => [p.contract_id ?? '', p]))
@@ -185,15 +201,23 @@ export default async function FacturasPage({
         initial={{ contract, q, from, to }}
       />
 
-      {sections.map((section) => {
+      {sections.map((section, index) => {
         const t = totalsByContract.get(section.id)
         const p = powerByContract.get(section.id)
+        const accent = ACCENTS[index % ACCENTS.length]
+        const priceRows = priceByContract.get(section.id) ?? []
         return (
-          <details key={section.id} open className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <details
+            key={section.id}
+            open
+            className="overflow-hidden rounded-2xl border border-slate-200 border-l-4 bg-white shadow-sm"
+            style={{ borderLeftColor: accent }}
+          >
             <summary className="cursor-pointer list-none p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold">
+                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ backgroundColor: accent }} />
                     {section.label}
                     {section.contract_number ? (
                       <span className="ml-2 text-xs font-normal text-slate-400">
@@ -232,7 +256,37 @@ export default async function FacturasPage({
                 )}
               </div>
             </summary>
+
             <div className="border-t border-slate-100">
+              {priceRows.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Precio de la energía (€/kWh)
+                    </h3>
+                    <PriceLineChart
+                      data={priceRows}
+                      lines={[{ key: 'energy', name: '€/kWh', color: accent }]}
+                      decimals={3}
+                      suffix="€/kWh"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Precio de la potencia (€/kW·día)
+                    </h3>
+                    <PriceLineChart
+                      data={priceRows}
+                      lines={[
+                        { key: 'punta', name: 'Punta', color: '#f59e0b' },
+                        { key: 'valle', name: 'Valle', color: '#10b981' },
+                      ]}
+                      decimals={4}
+                      suffix="€/kW·día"
+                    />
+                  </div>
+                </div>
+              )}
               <InvoiceTable invoices={section.invoices} />
             </div>
           </details>

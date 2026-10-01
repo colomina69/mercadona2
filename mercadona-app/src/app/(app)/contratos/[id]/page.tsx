@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { IberdrolaContract, IberdrolaInvoice, IberdrolaSummary } from '@/lib/types'
-import { eur, kwh, num, eurPerKwh, eurPerKwDay, dateOnly } from '@/lib/format'
-import { MonthlyInvoiceChart } from '@/components/charts'
+import type { IberdrolaContract, IberdrolaInvoice, IberdrolaPricePoint, IberdrolaSummary } from '@/lib/types'
+import { eur, kwh, num, eurPerKwh, eurPerKwDay, dateOnly, monthLabel } from '@/lib/format'
+import { MonthlyInvoiceChart, PriceLineChart } from '@/components/charts'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -21,17 +21,24 @@ export default async function ContratoDetailPage({ params }: { params: { id: str
   const contract = (contractData ?? null) as IberdrolaContract | null
   if (!contract) notFound()
 
-  const [summaryRes, invoicesRes] = await Promise.all([
+  const [summaryRes, invoicesRes, priceRes] = await Promise.all([
     insforge.database.rpc('iberdrola_summary', { p_contract_id: params.id }),
     insforge.database
       .from('iberdrola_invoices')
       .select('*')
       .eq('contract_id', params.id)
       .order('issue_date', { ascending: false }),
+    insforge.database.rpc('iberdrola_price_history', { p_contract_id: params.id }),
   ])
 
   const summary = (summaryRes.data ?? null) as IberdrolaSummary | null
   const invoices = (invoicesRes.data ?? []) as IberdrolaInvoice[]
+  const priceRows = ((priceRes.data ?? []) as IberdrolaPricePoint[]).map((p) => ({
+    label: monthLabel(p.issue_date.slice(0, 7)),
+    energy: p.energy_eur_kwh,
+    punta: p.power_punta,
+    valle: p.power_valle,
+  }))
   const power = summary?.power_by_contract?.[0]
   const tramo = new Map((summary?.consumption_by_tramo ?? []).map((t) => [t.tramo, t.kwh]))
 
@@ -86,6 +93,32 @@ export default async function ContratoDetailPage({ params }: { params: { id: str
           <h2 className="mb-3 text-sm font-semibold text-slate-600">Facturación por mes</h2>
           <MonthlyInvoiceChart data={summary!.monthly} />
         </section>
+      )}
+
+      {priceRows.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-600">Evolución del precio de la energía (€/kWh)</h2>
+            <PriceLineChart
+              data={priceRows}
+              lines={[{ key: 'energy', name: '€/kWh', color: '#0284c7' }]}
+              decimals={3}
+              suffix="€/kWh"
+            />
+          </section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-600">Evolución del precio de la potencia (€/kW·día)</h2>
+            <PriceLineChart
+              data={priceRows}
+              lines={[
+                { key: 'punta', name: 'Punta', color: '#f59e0b' },
+                { key: 'valle', name: 'Valle', color: '#10b981' },
+              ]}
+              decimals={4}
+              suffix="€/kW·día"
+            />
+          </section>
+        </div>
       )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">

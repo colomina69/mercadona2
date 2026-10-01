@@ -10,8 +10,9 @@ import {
   CartesianGrid,
   LineChart,
   Line,
+  Legend,
 } from 'recharts'
-import { eur, monthLabel, dateOnly } from '@/lib/format'
+import { eur, monthLabel, dateOnly, fixed } from '@/lib/format'
 
 export function MonthlySpendChart({ data }: { data: { month: string; total: number }[] }) {
   const rows = data.map((d) => ({ ...d, label: monthLabel(d.month) }))
@@ -114,6 +115,52 @@ export function MonthlyInvoiceChart({
         <Tooltip formatter={(v) => eur(Number(v))} />
         <Bar dataKey="total" name="Factura" fill="#0284c7" radius={[4, 4, 0, 0]} />
       </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+export function PriceLineChart({
+  data,
+  lines,
+  decimals = 3,
+  suffix = '',
+  height = 240,
+}: {
+  data: Record<string, number | string | null>[]
+  lines: { key: string; name: string; color: string }[]
+  decimals?: number
+  suffix?: string
+  height?: number
+}) {
+  const fmt = (v: number) => `${fixed(v, decimals)}${suffix ? ' ' + suffix : ''}`
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={data} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+        <XAxis dataKey="label" fontSize={11} interval="preserveStartEnd" tickLine={false} />
+        <YAxis
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          domain={['auto', 'auto']}
+          tickFormatter={fmt}
+          width={64}
+        />
+        <Tooltip formatter={(v) => fmt(Number(v))} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        {lines.map((l) => (
+          <Line
+            key={l.key}
+            type="monotone"
+            dataKey={l.key}
+            name={l.name}
+            stroke={l.color}
+            strokeWidth={2}
+            dot={false}
+            connectNulls
+          />
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   )
 }

@@ -235,3 +235,12 @@ export type InvoiceCandidate = {
   date_diff: number
   linked: boolean
 }
+
+export type IberdrolaPricePoint = {
+  contract_id: string | null
+  label: string
+  issue_date: string
+  energy_eur_kwh: number | null
+  power_punta: number | null
+  power_valle: number | null
+}
