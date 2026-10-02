@@ -4,6 +4,31 @@ globs: *
 alwaysApply: true
 ---
 
+# Memoria del proyecto (MEMORY.md) — OBLIGATORIO
+
+Este proyecto mantiene una bitácora en **`MEMORY.md`** (raíz del repo). **Todo lo que se
+haga debe quedar registrado en `MEMORY.md`.**
+
+Reglas:
+
+1. **Antes de empezar** una tarea, lee `MEMORY.md` para conocer el estado, decisiones y
+   problemas ya resueltos. Consulta también `specs/` (SDD) para el "qué/cómo" oficial.
+2. **Al terminar** cada cambio (feature, fix, migración, workflow, despliegue, decisión…),
+   **añade una entrada** al final de la sección *Cronología de trabajo* usando la
+   *Plantilla de entrada* (fecha, objetivo, cambios, decisiones, problemas y solución,
+   verificación, commit).
+3. **Mantén actualizadas** las secciones de referencia cuando cambien: *Entorno y
+   credenciales (ubicación)*, *Base de datos*, *Workflows n8n*, *Decisiones clave*,
+   *Problemas conocidos y soluciones* y *Comandos útiles*.
+4. **Nunca** escribas valores de claves/secretos en `MEMORY.md`: indica únicamente dónde
+   viven (`.env.local`, `.insforge/project.json`, `opencode.json`, credenciales de n8n).
+5. Si un cambio contradice una decisión previa, actualiza la decisión en `MEMORY.md`
+   (no dupliques entradas contradictorias: corrige la existente).
+6. Si el cambio modifica el comportamiento del sistema, actualiza también el `spec`
+   correspondiente en `specs/`.
+
+---
+
 # Documentación del SDK de InsForge - Descripción general
 
 ## ¿Qué es InsForge?
