@@ -39,7 +39,7 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - Dev local en **puerto 4001** (`next dev -p 4001`).
 - Rutas: `/`, `/tickets`, `/tickets/[id]`, `/productos`, `/productos/[name]`,
   `/movimientos`, `/movimientos/[id]`, `/categorias`, `/facturas`, `/facturas/[id]`,
-  `/contratos`, `/contratos/[id]`, `/login`.
+  `/contratos`, `/contratos/[id]`, `/combustible`, `/combustible/[id]`, `/login`.
 
 ---
 
@@ -105,6 +105,25 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - Se eliminó un fichero `nul` (reservado en Windows) que rompía `git add -A`.
 - Se dejó de versionar `mercadona-app/dev.log` y se añadió `**/dev.log` a `.gitignore`.
 
+### Sesión H — Combustible Waylet (Repsol)
+- Nueva feature **004-waylet**: lectura de tickets de combustible que llegan por **enlace
+  (no adjunto)** en el correo `Waylet - ES GLEM S.L <localidad>` (reenvío propio desde
+  `benicolo@gmail.com`).
+- Migración `waylet-tickets`: `waylet_tickets` + `waylet_ticket_lines`, RPCs `waylet_upsert_ticket`,
+  `waylet_ticket_message_ids`, `waylet_summary`, `bank_match_waylet`; `target_type='waylet'`
+  en `bank_transaction_links`. Bucket `waylet` + política de storage.
+- Parser `n8n/waylet-parser.js` validado contra el PDF de muestra (estación, fecha/hora,
+  carburante, litros, €/L, bruto, descuento, total, pago, tarjeta, nº ticket, id; líneas).
+- Workflows `waylet-tickets.js` (Gmail → Extract link → **Download PDF** → Extract → Parse →
+  Upsert → Upload) y `waylet-backfill.js`; generador `scripts/n8n-waylet-build.js`.
+- App: menú grupo **Combustible**, `/combustible` (totales, gráficas gasto y **€/L**, filtros),
+  `/combustible/[id]` (líneas + PDF), `FuelLinker` en `/movimientos/[id]`.
+- Documentación SDD `specs/004-waylet/`.
+- **Backfill ejecutado**: 8 tickets, 12 líneas, 282,39 L, 444,55 € (€/L bruto 1,6720 · pagado 1,5742);
+  7 de 8 emparejan con su cargo `REPSOL WAYLET` del banco.
+- **Gotcha**: el extractor de PDF de n8n **conserva las columnas** (`PRODUCTO €/L LITROS IMPORTE`
+  + fila `Diesel e+ 1,939 25,78 49,99`), distinto de `pdftotext`; el parser soporta ambos.
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -116,6 +135,7 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `bank_categories`, `bank_transaction_links`.
 - **Iberdrola**: `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`,
   `iberdrola_invoice_consumption`.
+- **Combustible (Waylet)**: `waylet_tickets`, `waylet_ticket_lines`.
 
 ### RPCs
 - Mercadona: `mercadona_upsert_ticket`, `mercadona_ticket_message_ids`,
@@ -124,16 +144,19 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `bank_links_validate_target` (trigger).
 - Iberdrola: `iberdrola_upsert_invoice`, `iberdrola_invoice_message_ids`,
   `iberdrola_summary`, `iberdrola_price_history`.
+- Waylet: `waylet_upsert_ticket`, `waylet_ticket_message_ids`, `waylet_summary`,
+  `bank_match_waylet`.
 
 ### Buckets (todos privados)
-`mercadona`, `bank-statements`, `iberdrola`.
-Políticas de lectura en `storage.objects` para `mercadona` e `iberdrola` (owner).
+`mercadona`, `bank-statements`, `iberdrola`, `waylet`.
+Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `waylet` (owner).
 
 ### Migraciones aplicadas
 `20260930082032_bank-transactions`, `20260930090015_bank-categories-and-links`,
 `20260930090015`…, `20261001092559_iberdrola-invoices`,
 `20261001094816_iberdrola-message-ids-obj`, `20261001133632_storage-iberdrola-select`,
-`20261001134653_iberdrola-price-history`.
+`20261001134653_iberdrola-price-history`, `20261002133047_waylet-tickets`,
+`20261002133222_storage-waylet-select`.
 
 ---
 
@@ -147,6 +170,9 @@ Políticas de lectura en `storage.objects` para `mercadona` e `iberdrola` (owner
 | `n8n/iberdrola-invoices.js` | Gmail | Facturas nuevas → RPC → bucket `iberdrola` |
 | `n8n/iberdrola-backfill.js` | Manual | Backfill facturas |
 | `n8n/iberdrola-parser.js` | (módulo) | Parser Iberdrola compartido |
+| `n8n/waylet-tickets.js` | Gmail | Ticket Waylet → extrae enlace → descarga PDF → RPC → bucket `waylet` |
+| `n8n/waylet-backfill.js` | Manual | Backfill tickets Waylet |
+| `n8n/waylet-parser.js` | (módulo) | Parser Waylet compartido |
 
 Generación/publicación desde CLI: `scripts/n8n-build.js` (necesita `N8N_MCP_TOKEN`)
 y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustando el parser).
@@ -178,6 +204,8 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
 | RPC nueva no encontrada (PostgREST cache) | `SELECT pg_notify('pgrst','reload schema')` |
 | Workflow n8n se corta si una RPC devuelve `[]` | Devolver objeto `{ids:[...]}` |
 | PDF no válido rompe la extracción | `onError: continue` en *Extract PDF File* |
+| Ticket Waylet sin adjunto (solo enlace en el correo) | Extraer la URL y descargar el PDF con HTTP (`responseFormat: 'file'`) antes de parsear |
+| n8n (Extract PDF) conserva columnas distintas de `pdftotext` | Parser con soporte de ambos layouts (filas en una línea vs. apiladas) |
 | `binaryMode: separate` deja `binary.data` vacío en Code | Usar `this.helpers.getBinaryDataBuffer(...)` |
 | `String.raw` no permitido por el SDK de n8n | Incrustar el parser como string JSON (generador) |
 | “object not found” al abrir PDF | Añadir política `storage.objects` del bucket |

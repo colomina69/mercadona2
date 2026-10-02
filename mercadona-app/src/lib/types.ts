@@ -90,7 +90,7 @@ export type BankCategory = {
 export type BankLink = {
   id: string
   transaction_id: string
-  target_type: 'ticket' | 'invoice'
+  target_type: 'ticket' | 'invoice' | 'waylet'
   target_id: string
 }
 
@@ -243,4 +243,66 @@ export type IberdrolaPricePoint = {
   energy_eur_kwh: number | null
   power_punta: number | null
   power_valle: number | null
+}
+
+export type WayletTicket = {
+  id: string
+  ticket_number: string
+  purchased_at: string | null
+  station_name: string | null
+  address: string | null
+  postal_code: string | null
+  locality: string | null
+  fuel_type: string | null
+  liters: number | null
+  unit_price: number | null
+  gross_amount: number | null
+  discount_amount: number | null
+  total: number | null
+  payment_method: string | null
+  card_last4: string | null
+  vehicle_plate: string | null
+  points: number | null
+  pdf_key: string | null
+  pdf_url: string | null
+}
+
+export type WayletLine = {
+  id: string
+  ticket_id: string
+  line_no: number
+  product_name: string | null
+  unit_price: number | null
+  amount: number | null
+}
+
+export type WayletSummary = {
+  totals: {
+    tickets: number
+    liters: number
+    total: number
+    gross: number
+    discount: number
+    eur_per_l: number | null
+    eur_per_l_paid: number | null
+    first_ticket: string | null
+    last_ticket: string | null
+  }
+  monthly: { month: string; liters: number; total: number; eur_per_l: number | null }[]
+  by_station: { station: string; locality: string | null; tickets: number; liters: number; total: number }[]
+  by_fuel: { fuel: string; tickets: number; liters: number; total: number }[]
+}
+
+export type WayletCandidate = {
+  id: string
+  ticket_number: string
+  purchased_at: string | null
+  station_name: string | null
+  locality: string | null
+  fuel_type: string | null
+  liters: number | null
+  unit_price: number | null
+  total: number | null
+  date_diff: number
+  linked: boolean
 }

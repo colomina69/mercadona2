@@ -64,3 +64,12 @@ export function eurPerKwh(value: number | null | undefined): string {
 export function eurPerKwDay(value: number | null | undefined): string {
   return value === null || value === undefined || Number.isNaN(value) ? '—' : `${fixed(value, 6)} €/kW·día`
 }
+
+export function liters(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(value)} L`
+}
+
+export function eurPerL(value: number | null | undefined): string {
+  return value === null || value === undefined || Number.isNaN(value) ? '—' : `${fixed(value, 3)} €/L`
+}

@@ -13,6 +13,7 @@ tiene su carpeta con `spec.md` (qué/por qué), `plan.md` (cómo), `data-model.m
 | [001-mercadona/](001-mercadona/spec.md) | Tickets y productos de Mercadona |
 | [002-banca/](002-banca/spec.md) | Movimientos bancarios, categorías y vínculos |
 | [003-iberdrola/](003-iberdrola/spec.md) | Facturas y contratos de Iberdrola, precios |
+| [004-waylet/](004-waylet/spec.md) | Tickets de combustible Waylet (Repsol) |
 
 ## Orden de lectura recomendado
 

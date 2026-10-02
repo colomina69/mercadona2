@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { BankCategory, BankLink, BankTransaction, IberdrolaInvoice, InvoiceCandidate, LinkedTicket, TicketCandidate } from '@/lib/types'
+import type { BankCategory, BankLink, BankTransaction, IberdrolaInvoice, InvoiceCandidate, LinkedTicket, TicketCandidate, WayletCandidate, WayletTicket } from '@/lib/types'
 import { eur, dateOnly } from '@/lib/format'
 import { TransactionEditor } from './TransactionEditor'
 import { TicketLinker } from './TicketLinker'
 import { InvoiceLinker } from './InvoiceLinker'
+import { FuelLinker } from './FuelLinker'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -28,17 +29,19 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
   const tx = (txData ?? null) as BankTransaction | null
   if (!tx) notFound()
 
-  const [categoriesRes, linksRes, suggestionsRes, invoiceSuggestionsRes] = await Promise.all([
+  const [categoriesRes, linksRes, suggestionsRes, invoiceSuggestionsRes, fuelSuggestionsRes] = await Promise.all([
     insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
     insforge.database.from('bank_transaction_links').select('id, transaction_id, target_type, target_id').eq('transaction_id', params.id),
     insforge.database.rpc('bank_match_tickets', { p_transaction_id: params.id }),
     insforge.database.rpc('bank_match_invoices', { p_transaction_id: params.id }),
+    insforge.database.rpc('bank_match_waylet', { p_transaction_id: params.id }),
   ])
 
   const categories = (categoriesRes.data ?? []) as BankCategory[]
   const links = (linksRes.data ?? []) as BankLink[]
   const suggestions = (suggestionsRes.data ?? []) as TicketCandidate[]
   const invoiceSuggestions = (invoiceSuggestionsRes.data ?? []) as InvoiceCandidate[]
+  const fuelSuggestions = (fuelSuggestionsRes.data ?? []) as WayletCandidate[]
 
   const ticketIds = links.filter((l) => l.target_type === 'ticket').map((l) => l.target_id)
   let linkedTickets: LinkedTicket[] = []
@@ -61,6 +64,17 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
     linkedInvoices = (data ?? []) as IberdrolaInvoice[]
   }
   const linkedByInvoiceId = Object.fromEntries(links.filter((l) => l.target_type === 'invoice').map((l) => [l.target_id, l.id]))
+
+  const wayletIds = links.filter((l) => l.target_type === 'waylet').map((l) => l.target_id)
+  let linkedFuel: WayletTicket[] = []
+  if (wayletIds.length > 0) {
+    const { data } = await insforge.database
+      .from('waylet_tickets')
+      .select('*')
+      .in('id', wayletIds)
+    linkedFuel = (data ?? []) as WayletTicket[]
+  }
+  const linkedByWayletId = Object.fromEntries(links.filter((l) => l.target_type === 'waylet').map((l) => [l.target_id, l.id]))
 
   const label = tx.concept ?? tx.description ?? 'Movimiento'
 
@@ -122,6 +136,14 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
         suggestions={invoiceSuggestions}
         linkedInvoices={linkedInvoices}
         linkedByInvoiceId={linkedByInvoiceId}
+      />
+
+      <FuelLinker
+        transactionId={tx.id}
+        amount={tx.amount}
+        suggestions={fuelSuggestions}
+        linkedTickets={linkedFuel}
+        linkedById={linkedByWayletId}
       />
     </div>
   )

@@ -23,6 +23,10 @@ const GROUPS: { label: string; links: { href: string; label: string }[] }[] = [
     ],
   },
   {
+    label: 'Combustible',
+    links: [{ href: '/combustible', label: 'Repostajes' }],
+  },
+  {
     label: 'Bancos',
     links: [
       { href: '/movimientos', label: 'Movimientos' },
