@@ -1,158 +1,158 @@
 ---
-description: Instructions building apps with MCP
+description: Instrucciones para crear aplicaciones con MCP
 globs: *
 alwaysApply: true
 ---
 
-# InsForge SDK Documentation - Overview
+# Documentación del SDK de InsForge - Descripción general
 
-## What is InsForge?
+## ¿Qué es InsForge?
 
-Backend-as-a-service (BaaS) platform providing:
+Plataforma Backend-as-a-Service (BaaS) que ofrece:
 
-- **Database**: PostgreSQL with PostgREST API
-- **Authentication**: Email/password + OAuth (Google, GitHub)
-- **Storage**: File upload/download
-- **AI**: OpenRouter key provisioning and model catalog for direct OpenAI-compatible integrations
-- **Functions**: Serverless function deployment
-- **Realtime**: WebSocket pub/sub (database + client events)
+- **Base de datos**: PostgreSQL con API PostgREST
+- **Autenticación**: Email/contraseña + OAuth (Google, GitHub)
+- **Almacenamiento**: Subida/descarga de archivos
+- **IA**: Aprovisionamiento de clave OpenRouter y catálogo de modelos para integraciones directas compatibles con OpenAI
+- **Funciones**: Despliegue de funciones serverless
+- **Tiempo real**: Pub/sub por WebSocket (eventos de base de datos + cliente)
 
-## Installation
+## Instalación
 
-The following is a step-by-step guide to installing and using the InsForge TypeScript SDK for Web applications. If you are building other types of applications, please refer to:
-- [Swift SDK documentation](/sdks/swift/overview) for iOS, macOS, tvOS, and watchOS applications.
-- [Kotlin SDK documentation](/sdks/kotlin/overview) for Android applications.
-- [REST API documentation](/sdks/rest/overview) for direct HTTP API access.
+La siguiente es una guía paso a paso para instalar y usar el SDK TypeScript de InsForge en aplicaciones web. Si estás creando otros tipos de aplicaciones, consulta:
+- [Documentación del SDK de Swift](/sdks/swift/overview) para aplicaciones iOS, macOS, tvOS y watchOS.
+- [Documentación del SDK de Kotlin](/sdks/kotlin/overview) para aplicaciones Android.
+- [Documentación de la API REST](/sdks/rest/overview) para acceso directo por HTTP.
 
-### 🚨 CRITICAL: Follow these steps in order
+### 🚨 CRÍTICO: Sigue estos pasos en orden
 
-### Step 1: Download Template
+### Paso 1: Descargar la plantilla
 
-Use the `download-template` MCP tool to create a new project with your backend URL and anon key pre-configured.
+Usa la herramienta MCP `download-template` para crear un proyecto nuevo con tu URL de backend y tu anon key ya configuradas.
 
-### Step 2: Install SDK
+### Paso 2: Instalar el SDK
 
 ```bash
 npm install @insforge/sdk@latest
 ```
 
-### Step 3: Create SDK Client
+### Paso 3: Crear el cliente del SDK
 
-You must create a client instance using `createClient()` with your base URL and anon key:
+Debes crear una instancia del cliente con `createClient()` usando tu URL base y tu anon key:
 
 ```javascript
 import { createClient } from '@insforge/sdk';
 
 const client = createClient({
-  baseUrl: 'https://your-app.region.insforge.app',  // Your InsForge backend URL
-  anonKey: 'your-anon-key-here'       // Get this from backend metadata
+  baseUrl: 'https://your-app.region.insforge.app',  // URL de tu backend InsForge
+  anonKey: 'your-anon-key-here'       // Obtén esto de los metadatos del backend
 });
 
 ```
 
-**API BASE URL**: Your API base URL is `https://your-app.region.insforge.app`.
+**URL BASE DE LA API**: Tu URL base de la API es `https://your-app.region.insforge.app`.
 
-## Getting Detailed Documentation
+## Obtener documentación detallada
 
-### 🚨 CRITICAL: Always Fetch Documentation Before Writing Code
+### 🚨 CRÍTICO: Consulta siempre la documentación antes de escribir código
 
-InsForge provides official SDKs and REST APIs, use them to interact with InsForge services from your application code.
+InsForge proporciona SDKs oficiales y APIs REST; úsalos para interactuar con los servicios de InsForge desde el código de tu aplicación.
 
-- [TypeScript SDK](/sdks/typescript/overview) - JavaScript/TypeScript
-- [Swift SDK](/sdks/swift/overview) - iOS, macOS, tvOS, and watchOS
-- [Kotlin SDK](/sdks/kotlin/overview) - Android and Kotlin Multiplatform
-- [REST API](/sdks/rest/overview) - Direct HTTP API access
+- [SDK de TypeScript](/sdks/typescript/overview) - JavaScript/TypeScript
+- [SDK de Swift](/sdks/swift/overview) - iOS, macOS, tvOS y watchOS
+- [SDK de Kotlin](/sdks/kotlin/overview) - Android y Kotlin Multiplatform
+- [API REST](/sdks/rest/overview) - Acceso directo por HTTP
 
-Before writing or editing any InsForge integration code, you **MUST** call the `fetch-docs` or `fetch-sdk-docs` MCP tool to get the latest SDK documentation. This ensures you have accurate, up-to-date implementation patterns.
+Antes de escribir o editar cualquier código de integración con InsForge, **DEBES** llamar a la herramienta MCP `fetch-docs` o `fetch-sdk-docs` para obtener la documentación más reciente del SDK. Así te aseguras de tener patrones de implementación precisos y actualizados.
 
-### Use the InsForge `fetch-docs` MCP tool to get specific SDK documentation:
+### Usa la herramienta MCP `fetch-docs` de InsForge para obtener documentación específica del SDK:
 
-Available documentation types:
+Tipos de documentación disponibles:
 
-- `"instructions"` - Essential backend setup (START HERE)
-- `"real-time"` - Real-time pub/sub (database + client events) via WebSockets
-- `"db-sdk-typescript"` - Database operations with TypeScript SDK
-- **Authentication** - Choose based on implementation:
-  - `"auth-sdk-typescript"` - TypeScript SDK methods for custom auth flows
-  - `"auth-components-react"` - Pre-built auth UI for React+Vite (single-page app)
-  - `"auth-components-react-router"` - Pre-built auth UI for React(Vite+React Router) (multi-page app)
-  - `"auth-components-nextjs"` - Pre-built auth UI for Next.js (SSR app)
-- `"storage-sdk"` - File storage operations
-- `"functions-sdk"` - Serverless functions invocation
-- `"ai-integration-sdk"` - AI integration with the provisioned OpenRouter key and OpenAI SDK
-- `"deployment"` - Deploy frontend applications via MCP tool
-- `"payments"` - Stripe Checkout, Billing Portal, webhook projections, and fulfillment patterns
+- `"instructions"` - Configuración esencial del backend (EMPIEZA AQUÍ)
+- `"real-time"` - Pub/sub en tiempo real (eventos de base de datos + cliente) mediante WebSockets
+- `"db-sdk-typescript"` - Operaciones de base de datos con el SDK de TypeScript
+- **Autenticación** - Elige según la implementación:
+  - `"auth-sdk-typescript"` - Métodos del SDK de TypeScript para flujos de autenticación personalizados
+  - `"auth-components-react"` - UI de autenticación preconstruida para React+Vite (aplicación de una sola página)
+  - `"auth-components-react-router"` - UI de autenticación preconstruida para React (Vite+React Router) (aplicación multipágina)
+  - `"auth-components-nextjs"` - UI de autenticación preconstruida para Next.js (aplicación SSR)
+- `"storage-sdk"` - Operaciones de almacenamiento de archivos
+- `"functions-sdk"` - Invocación de funciones serverless
+- `"ai-integration-sdk"` - Integración de IA con la clave OpenRouter aprovisionada y el SDK de OpenAI
+- `"deployment"` - Desplegar aplicaciones frontend mediante la herramienta MCP
+- `"payments"` - Stripe Checkout, Billing Portal, proyecciones de webhooks y patrones de fulfillment
 
-These docs are mostly for the TypeScript SDK. For other languages, you can also use the `fetch-sdk-docs` MCP tool to get specific documentation.
+Esta documentación es principalmente para el SDK de TypeScript. Para otros lenguajes, también puedes usar la herramienta MCP `fetch-sdk-docs` para obtener documentación específica.
 
-### Use the InsForge `fetch-sdk-docs` MCP tool to get specific SDK documentation
+### Usa la herramienta MCP `fetch-sdk-docs` de InsForge para obtener documentación específica del SDK
 
-You can fetch SDK documentation using the `fetch-sdk-docs` MCP tool with a specific feature type and language.
+Puedes obtener la documentación del SDK con la herramienta MCP `fetch-sdk-docs` indicando un tipo de característica y un lenguaje.
 
-Available feature types:
-- `db` - Database operations
-- `storage` - File storage operations
-- `functions` - Serverless functions invocation
-- `auth` - User authentication
-- `ai` - AI integration with the provisioned OpenRouter key and OpenAI SDK
-- `realtime` - Real-time pub/sub (database + client events) via WebSockets
-- `payments` - Stripe Checkout and Billing Portal with webhook-based fulfillment
+Tipos de características disponibles:
+- `db` - Operaciones de base de datos
+- `storage` - Operaciones de almacenamiento de archivos
+- `functions` - Invocación de funciones serverless
+- `auth` - Autenticación de usuarios
+- `ai` - Integración de IA con la clave OpenRouter aprovisionada y el SDK de OpenAI
+- `realtime` - Pub/sub en tiempo real (eventos de base de datos + cliente) mediante WebSockets
+- `payments` - Stripe Checkout y Billing Portal con fulfillment basado en webhooks
 
-Available languages:
-- `typescript` - JavaScript/TypeScript SDK
-- `swift` - Swift SDK (for iOS, macOS, tvOS, and watchOS)
-- `kotlin` - Kotlin SDK (for Android and JVM applications)
-- `rest-api` - REST API
+Lenguajes disponibles:
+- `typescript` - SDK de JavaScript/TypeScript
+- `swift` - SDK de Swift (para iOS, macOS, tvOS y watchOS)
+- `kotlin` - SDK de Kotlin (para aplicaciones Android y JVM)
+- `rest-api` - API REST
 
-Payments currently has TypeScript SDK docs only. Use the Payments API reference for non-TypeScript clients.
+Actualmente Payments solo tiene documentación del SDK de TypeScript. Usa la referencia de la API de Payments para clientes que no sean TypeScript.
 
-## When to Use SDK vs MCP Tools
+## Cuándo usar el SDK y cuándo las herramientas MCP
 
-### Always SDK for Application Logic:
+### Usa siempre el SDK para la lógica de la aplicación:
 
-- Authentication (register, login, logout, profiles)
-- Database CRUD (select, insert, update, delete)
-- Storage operations (upload, download files)
-- AI integration via the provisioned OpenRouter key with the OpenAI SDK or OpenRouter HTTP API
-- Serverless function invocation
-- Payments checkout and customer portal session creation
+- Autenticación (registro, inicio y cierre de sesión, perfiles)
+- CRUD de base de datos (select, insert, update, delete)
+- Operaciones de almacenamiento (subir y descargar archivos)
+- Integración de IA mediante la clave OpenRouter aprovisionada con el SDK de OpenAI o la API HTTP de OpenRouter
+- Invocación de funciones serverless
+- Creación de sesiones de checkout de pagos y del portal de cliente
 
-### Use MCP Tools for Infrastructure:
+### Usa las herramientas MCP para la infraestructura:
 
-- Project scaffolding (`download-template`) - Download starter templates with InsForge integration
-- Backend setup and metadata (`get-backend-metadata`)
-- Database schema management (`run-raw-sql`, `get-table-schema`)
-- Storage bucket creation (`create-bucket`, `list-buckets`, `delete-bucket`)
-- Serverless function deployment (`create-function`, `update-function`, `delete-function`)
-- Frontend deployment (`create-deployment`) - Deploy frontend apps to InsForge hosting
+- Scaffolding del proyecto (`download-template`) - Descargar plantillas de inicio con integración de InsForge
+- Configuración y metadatos del backend (`get-backend-metadata`)
+- Gestión del esquema de base de datos (`run-raw-sql`, `get-table-schema`)
+- Creación de buckets de almacenamiento (`create-bucket`, `list-buckets`, `delete-bucket`)
+- Despliegue de funciones serverless (`create-function`, `update-function`, `delete-function`)
+- Despliegue de frontend (`create-deployment`) - Desplegar aplicaciones frontend en el hosting de InsForge
 
-## Important Notes
+## Notas importantes
 
-- For auth: use `auth-sdk` for custom UI, or framework-specific components for pre-built UI
-- SDK returns `{data, error}` structure for all operations
-- Database inserts require array format: `[{...}]`
-- Serverless functions have one endpoint and do not support nested route paths
-- Storage: Upload files to buckets, store URLs in database
-- AI integrations should call OpenRouter directly with `baseURL: "https://openrouter.ai/api/v1"` and a server-side `OPENROUTER_API_KEY`
-- **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
+- Para autenticación: usa `auth-sdk` para UI personalizada, o componentes específicos del framework para UI preconstruida
+- El SDK devuelve una estructura `{data, error}` en todas las operaciones
+- Las inserciones en base de datos requieren formato de array: `[{...}]`
+- Las funciones serverless tienen un único endpoint y no admiten rutas anidadas
+- Almacenamiento: sube archivos a buckets y guarda las URL en la base de datos
+- Las integraciones de IA deben llamar directamente a OpenRouter con `baseURL: "https://openrouter.ai/api/v1"` y una `OPENROUTER_API_KEY` en el servidor
+- **MUY IMPORTANTE**: Usa Tailwind CSS 3.4 (no actualices a v4). Fija estas dependencias en `package.json`
 
 <!-- INSFORGE:START -->
-## InsForge backend
+## Backend de InsForge
 
-This project uses [InsForge](https://insforge.dev): an all-in-one, open-source Postgres-based backend (BaaS) that gives this app a database, authentication, file storage, edge functions, realtime, an AI model gateway, and payments through one platform.
+Este proyecto usa [InsForge](https://insforge.dev): un backend todo-en-uno, de código abierto y basado en Postgres (BaaS) que proporciona a esta aplicación base de datos, autenticación, almacenamiento de archivos, funciones edge, tiempo real, una pasarela de modelos de IA y pagos a través de una sola plataforma.
 
-- **Project:** **oss-project** (API base `https://insforge.benicolo.com`)
-- **Skills:** these InsForge skills are installed for supported coding agents. Reach for them before implementing any InsForge feature instead of guessing the API:
-  - `insforge`: app code with the `@insforge/sdk` client (database CRUD, auth, storage, edge functions, realtime, AI, email, and Stripe payments).
-  - `insforge-cli`: backend and infrastructure via the `insforge` CLI (projects, SQL, migrations, RLS policies, storage buckets, functions, secrets, payment setup, schedules, deploys).
-  - `insforge-debug`: diagnosing failures (SDK/HTTP errors, RLS denials, auth and OAuth issues) and running security or performance audits.
-  - `insforge-integrations`: wiring external auth providers (Clerk, Auth0, WorkOS, Better Auth, etc.) for JWT-based RLS, or the OKX x402 payment facilitator.
-  - `find-skills`: discovering additional skills on demand.
-- **Credentials:** app code reads keys from `.env.local`; the CLI reads `.insforge/project.json`. Never hardcode or commit keys.
+- **Proyecto:** **oss-project** (base de la API `https://insforge.benicolo.com`)
+- **Skills:** estas skills de InsForge están instaladas para los agentes de código compatibles. Recurre a ellas antes de implementar cualquier característica de InsForge en lugar de adivinar la API:
+  - `insforge`: código de aplicación con el cliente `@insforge/sdk` (CRUD de base de datos, autenticación, almacenamiento, funciones edge, tiempo real, IA, email y pagos con Stripe).
+  - `insforge-cli`: backend e infraestructura mediante la CLI `insforge` (proyectos, SQL, migraciones, políticas RLS, buckets de almacenamiento, funciones, secretos, configuración de pagos, programaciones, despliegues).
+  - `insforge-debug`: diagnóstico de fallos (errores del SDK/HTTP, denegaciones de RLS, problemas de autenticación y OAuth) y ejecución de auditorías de seguridad o rendimiento.
+  - `insforge-integrations`: conectar proveedores de autenticación externos (Clerk, Auth0, WorkOS, Better Auth, etc.) para RLS basado en JWT, o el facilitador de pagos OKX x402.
+  - `find-skills`: descubrir skills adicionales a demanda.
+- **Credenciales:** el código de la aplicación lee las claves de `.env.local`; la CLI las lee de `.insforge/project.json`. Nunca escribas ni subas claves al repositorio.
 
-Key patterns:
+Patrones clave:
 
-- Database inserts take an array: `insert([{ ... }])`.
-- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
-- For storage uploads, persist both the returned `url` and `key`.
+- Las inserciones en base de datos toman un array: `insert([{ ... }])`.
+- Referencia a los usuarios con `auth.users(id)`; usa `auth.uid()` en las políticas RLS.
+- Para subidas a almacenamiento, conserva tanto la `url` como la `key` devueltas.
 <!-- INSFORGE:END -->
