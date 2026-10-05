@@ -37,9 +37,10 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   - navegador: `src/lib/insforge/client.ts` → `getInsforgeBrowser()` (escrituras + storage).
 - Autenticación email/contraseña; `middleware.ts` protege `(app)` y redirige a `/login`.
 - Dev local en **puerto 4001** (`next dev -p 4001`).
-- Rutas: `/`, `/tickets`, `/tickets/[id]`, `/productos`, `/productos/[name]`,
-  `/movimientos`, `/movimientos/[id]`, `/categorias`, `/facturas`, `/facturas/[id]`,
-  `/contratos`, `/contratos/[id]`, `/combustible`, `/combustible/[id]`, `/login`.
+- Rutas: `/` (portada de botones), `/mercadona` (resumen Mercadona), `/tickets`,
+  `/tickets/[id]`, `/productos`, `/productos/[name]`, `/movimientos`, `/movimientos/[id]`,
+  `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
+  `/combustible`, `/combustible/[id]`, `/login`.
 
 ---
 
@@ -123,6 +124,42 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   7 de 8 emparejan con su cargo `REPSOL WAYLET` del banco.
 - **Gotcha**: el extractor de PDF de n8n **conserva las columnas** (`PRODUCTO €/L LITROS IMPORTE`
   + fila `Diesel e+ 1,939 25,78 49,99`), distinto de `pdftotext`; el parser soporta ambos.
+
+### Sesión I — Portada de botones (móvil)
+- **Objetivo**: pantalla de inicio tipo hub con botones grandes para los apartados.
+- **Cambios**:
+  - Nueva portada en `/` (`(app)/page.tsx`): botones/ tarjetas grandes para **Mercadona**
+    (`/mercadona`), **Iberdrola** (`/facturas`), **Combustible** (`/combustible`) y
+    **Cuenta** (`/movimientos`); diseño mobile-first (`grid-cols-1 sm:grid-cols-2`, áreas
+    táctiles ≥104px, iconos y flecha, foco visible, `active:scale`).
+  - El resumen de gasto de Mercadona se movió de `/` a **`/mercadona`** (`(app)/mercadona/page.tsx`).
+  - `NavLinks`: grupo **Inicio/Portada**; se añade **Resumen** en Mercadona; el grupo
+    **Bancos** pasa a llamarse **Cuenta**.
+  - `(app)/layout.tsx`: título de cabecera → **🏠 Mis gastos** con enlace a `/`.
+- **Decisiones**: "Cuenta" = cuenta bancaria (movimientos/categorías); el dashboard de
+  Mercadona vive en `/mercadona`.
+- **Verificación**: `npx tsc --noEmit` y `npm run lint` OK; `npm run build` OK (rutas `/` y
+  `/mercadona` generadas); dev en http://localhost:4001.
+- **Commit**: (pendiente)
+
+### Sesión J — Navegación por secciones (sin menú global)
+- **Objetivo**: quitar el menú superior global y navegar por secciones con botones propios.
+- **Cambios**:
+  - Se elimina `components/NavLinks.tsx`; `(app)/layout.tsx` ya no lo usa.
+  - Cabecera: botón **🏠 Inicio** (enlace a `/`) visible desde cualquier página + email + Salir.
+  - Nuevo `components/SectionNav.tsx` (cliente, `usePathname`): detecta la sección por prefijo
+    de ruta y muestra **pills** con scroll horizontal (`no-scrollbar`), activo `aria-current="page"`
+    (`bg-emerald-600 text-white`); se oculta en `/`.
+    - Mercadona → Resumen `/mercadona`, Tickets `/tickets`, Productos `/productos`.
+    - Iberdrola → Facturas `/facturas`, Contratos `/contratos`.
+    - Combustible → Repostajes `/combustible`.
+    - Cuenta → Movimientos `/movimientos`, Categorías `/categorias`.
+  - Al estar en el layout, aparece en **todas** las páginas de la sección (incluidas detalle).
+- **Decisiones**: navegación contextual por sección (pills) en lugar de menú global; Inicio
+  siempre accesible desde la cabecera.
+- **Verificación**: `npx tsc --noEmit` y `npm run lint` OK; `npm run build` OK; dev en
+  http://localhost:4001 (200).
+- **Commit**: (pendiente)
 
 ---
 

@@ -68,14 +68,21 @@ Los **vínculos** movimiento↔ticket↔factura se modelan en `bank_transaction_
 
 | Ruta | Descripción |
 |---|---|
-| `/` | Dashboard Mercadona (gasto, tiendas, top productos) |
+| `/` | Portada tipo hub con botones a los apartados (móvil) |
+| `/mercadona` | Dashboard Mercadona (gasto, tiendas, top productos) |
 | `/tickets`, `/tickets/[id]` | Listado y detalle de tickets (+PDF) |
 | `/productos`, `/productos/[name]` | Catálogo y evolución de precios |
 | `/movimientos`, `/movimientos/[id]` | Movimientos bancarios, edición, vínculos |
 | `/categorias` | Tipos de gasto/ingreso |
 | `/facturas`, `/facturas/[id]` | Facturas Iberdrola agrupadas por contrato |
 | `/contratos`, `/contratos/[id]` | Contratos, totales y evolución de precios |
+| `/combustible`, `/combustible/[id]` | Repostajes Waylet (+PDF) |
 | `/login` | Autenticación email/contraseña |
+
+**Navegación**: la portada `/` es un hub de botones hacia las cuatro secciones. Cada sección
+muestra un **menú contextual de pills** (`SectionNav`, detecta la sección por la ruta) con sus
+sub-páginas, visible también en las páginas de detalle. En la cabecera, el botón **Inicio**
+(enlace a `/`) está disponible desde cualquier página. No hay menú global.
 
 ## 5. Integraciones externas
 

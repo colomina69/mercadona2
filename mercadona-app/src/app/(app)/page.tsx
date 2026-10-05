@@ -1,62 +1,75 @@
 import Link from 'next/link'
-import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { SpendSummary } from '@/lib/types'
-import { eur, num } from '@/lib/format'
-import { MonthlySpendChart, StoreSpendChart, TopProductsChart } from '@/components/charts'
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </div>
-  )
+type Section = {
+  href: string
+  emoji: string
+  title: string
+  description: string
+  accent: string
 }
 
-export default async function DashboardPage() {
-  const insforge = createInsForgeServerClient()
-  const { data, error } = await insforge.database.rpc('mercadona_spend_summary')
-  const summary = (data ?? null) as SpendSummary | null
+const SECTIONS: Section[] = [
+  {
+    href: '/mercadona',
+    emoji: '🥕',
+    title: 'Mercadona',
+    description: 'Tickets, productos y gasto',
+    accent: 'bg-emerald-50 text-emerald-700',
+  },
+  {
+    href: '/facturas',
+    emoji: '⚡',
+    title: 'Iberdrola',
+    description: 'Facturas y contratos de luz',
+    accent: 'bg-amber-50 text-amber-700',
+  },
+  {
+    href: '/combustible',
+    emoji: '⛽',
+    title: 'Combustible',
+    description: 'Repostajes Waylet',
+    accent: 'bg-sky-50 text-sky-700',
+  },
+  {
+    href: '/movimientos',
+    emoji: '🏦',
+    title: 'Cuenta',
+    description: 'Movimientos y categorías',
+    accent: 'bg-violet-50 text-violet-700',
+  },
+]
 
-  if (error || !summary) {
-    return (
-      <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-        No se pudo cargar el resumen: {error?.message ?? 'sin datos'}
-      </div>
-    )
-  }
-
+export default function HomePage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Resumen de gasto</h1>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Stat label="Gasto total" value={eur(summary.totals.total)} />
-        <Stat label="Tickets" value={num(summary.totals.tickets, 0)} />
-        <Stat label="Ticket medio" value={eur(summary.totals.avg_ticket)} />
+      <div>
+        <h1 className="text-2xl font-semibold">Mis gastos</h1>
+        <p className="mt-1 text-sm text-slate-500">Elige un apartado para empezar.</p>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-slate-600">Gasto por mes</h2>
-        <MonthlySpendChart data={summary.monthly} />
-      </section>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600">Gasto por tienda</h2>
-          <StoreSpendChart data={summary.by_store} />
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600">Top productos (por gasto)</h2>
-          <TopProductsChart data={summary.top_products} />
-          <p className="mt-3 text-right text-xs">
-            <Link href="/productos" className="text-emerald-700 hover:underline">
-              Ver todos los productos →
-            </Link>
-          </p>
-        </section>
-      </div>
+      <nav aria-label="Apartados" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {SECTIONS.map((section) => (
+          <Link
+            key={section.href}
+            href={section.href}
+            className="group flex min-h-[104px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.99]"
+          >
+            <span
+              aria-hidden
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${section.accent}`}
+            >
+              {section.emoji}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg font-semibold text-slate-900">{section.title}</span>
+              <span className="block text-sm text-slate-500">{section.description}</span>
+            </span>
+            <span aria-hidden className="shrink-0 text-xl text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-400">
+              ›
+            </span>
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }
