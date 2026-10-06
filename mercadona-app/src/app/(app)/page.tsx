@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { createInsForgeServerClient } from '@/lib/insforge/server'
+import { eur, dateOnly } from '@/lib/format'
 
 type Section = {
   href: string
@@ -39,7 +41,22 @@ const SECTIONS: Section[] = [
   },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  const insforge = createInsForgeServerClient()
+  const { data } = await insforge.database
+    .from('bank_account_balances')
+    .select('account_iban, account_name, balance, currency, as_of')
+    .order('as_of', { ascending: false })
+    .limit(1)
+  const snapshot = (data?.[0] ?? null) as { balance: number | null; as_of: string | null } | null
+  const sections = snapshot
+    ? SECTIONS.map((s) =>
+        s.href === '/movimientos'
+          ? { ...s, description: `Saldo ${eur(snapshot.balance)} · ${dateOnly(snapshot.as_of)}` }
+          : s,
+      )
+    : SECTIONS
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,7 +65,7 @@ export default function HomePage() {
       </div>
 
       <nav aria-label="Apartados" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <Link
             key={section.href}
             href={section.href}

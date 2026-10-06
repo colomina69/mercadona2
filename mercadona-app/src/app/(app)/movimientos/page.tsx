@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { BankSummary, BankTransaction, BankCategory } from '@/lib/types'
+import type { BankSummary, BankTransaction, BankCategory, BankAccountBalance } from '@/lib/types'
 import { eur, num, dateOnly } from '@/lib/format'
 import { MonthlyBankChart } from '@/components/charts'
 import { BankFilters } from '@/components/BankFilters'
@@ -42,7 +42,7 @@ export default async function MovimientosPage({
   const page = Math.max(1, Number.parseInt(searchParams.page ?? '1', 10) || 1)
   const offset = (page - 1) * PAGE_SIZE
 
-  const [summaryRes, categoriesRes, listRes] = await Promise.all([
+  const [summaryRes, categoriesRes, listRes, balancesRes] = await Promise.all([
     insforge.database.rpc('bank_summary', { p_from: from || null, p_to: to || null }),
     insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
     (() => {
@@ -59,11 +59,22 @@ export default async function MovimientosPage({
         .order('id', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1)
     })(),
+    insforge.database
+      .from('bank_account_balances')
+      .select('account_iban, account_name, balance, currency, as_of, source')
+      .order('as_of', { ascending: false })
+      .limit(50),
   ])
 
   const summary = (summaryRes.data ?? null) as BankSummary | null
   const categories = (categoriesRes.data ?? []) as BankCategory[]
   const transactions = (listRes.data ?? []) as TxRow[]
+  const balanceRows = (balancesRes.data ?? []) as BankAccountBalance[]
+  const latestByAccount = new Map<string, BankAccountBalance>()
+  for (const b of balanceRows) {
+    if (!latestByAccount.has(b.account_iban)) latestByAccount.set(b.account_iban, b)
+  }
+  const accounts = Array.from(latestByAccount.values())
   const total = listRes.count ?? transactions.length
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -89,6 +100,31 @@ export default async function MovimientosPage({
       </div>
 
       <BankUploadForm />
+
+      {accounts.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-slate-600">Saldo de la cuenta</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {accounts.map((a) => (
+              <div
+                key={a.account_iban}
+                className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-700">
+                    {a.account_name ?? 'Cuenta'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {a.account_iban} · {dateOnly(a.as_of)}
+                    {a.source === 'enable_banking' ? ' · Enable Banking' : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-xl font-semibold text-slate-900">{eur(a.balance)}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {summary && (
         <>

@@ -126,6 +126,15 @@ export type BankSummary = {
   by_category: { category: string; kind: 'expense' | 'income'; total: number; count: number }[]
 }
 
+export type BankAccountBalance = {
+  account_iban: string
+  account_name: string | null
+  balance: number | null
+  currency: string | null
+  as_of: string | null
+  source: string | null
+}
+
 export type IberdrolaContract = {
   id: string
   contract_number: string

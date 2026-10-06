@@ -18,7 +18,7 @@
 | API key InsForge (admin) | en `opencode.json` (MCP `insforge`) y `.env.local` de scripts |
 | Owner uid (RLS) | `dfaf6414-958a-4768-9d92-a57493181524` |
 | n8n | `https://n8n.benicolo.com` · MCP `.../mcp-server/http` (token en `opencode.json`) |
-| Credenciales n8n | `InsForge` (httpHeaderAuth) e `Gmail account` (gmailOAuth2) |
+| Credenciales n8n | `InsForge` (httpHeaderAuth), `Gmail account` (gmailOAuth2) y `Enable Banking RSA` (crypto, app id `4211076d-…`) |
 | Vercel | proyecto `insforge` (`prj_20w2s24Z0CefOQSsc0a4J9xCfvon`) · team `team_m0rOwtLX4SM9C2Sw1gUwl8HT` |
 | Alias de producción | `https://insforge-mu.vercel.app` |
 | Dokploy (backend) | `https://dokploy.benicolo.com` · compose `insforge` (`MSEEh5zwTE_ov2dIjKjM0`) |
@@ -161,6 +161,54 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   http://localhost:4001 (200).
 - **Commit**: (pendiente)
 
+### Sesión K — Enable Banking (PSD2 AIS) → InsForge
+- **Objetivo**: volcar los movimientos de la cuenta corriente de Banco Sabadell (vía
+  Enable Banking) en `bank_transactions`.
+- **Cambios**:
+  - Migración `20261006071518_enablebanking-transactions`: columnas `account_iban`,
+    `account_name`, `source`, `external_id` en `bank_transactions` (+ índices) y RPC
+    `bank_upsert_transactions` ampliada (lee los campos nuevos del JSON; `source` por
+    defecto `statement_txt`, retrocompatible con el workflow TXT).
+  - Workflow n8n (proyecto `enable_bank`): `Enable Banking - Cuenta Corriente`.
+    - Firma JWT RS256 con el nodo **Crypto** + credencial cifrada `Enable Banking RSA`
+    (los task runners bloquean `require('crypto')` y `$env`).
+    - Flujo: `POST /auth` → callback → `POST /sessions` (sesión en static data) →
+    `GET /sessions/{id}` + `transactions` (30 días) → `bank_upsert_transactions`.
+    Solo **1 llamada al ASPSP por ejecución** (se evitan `details` y `balances`).
+    - Entradas: `/webhook/enable-banking-start` (autorizar), `/webhook/enable-banking-refresh`
+    (listado+upsert), `/webhook/enable-banking-callback` (registrada en EB); schedule 08:00.
+- **Decisiones**:
+  - `dedup_hash = 'eb:<iban>:<transaction_id|entry_reference>'`; `source='enable_banking'`.
+  - Importe firmado (DBIT negativo / CRDT positivo); `balance` = `balance_after_transaction`.
+  - Instantánea diaria de saldo por cuenta en `bank_account_balances`
+    (RPC `bank_upsert_account_balances`), también derivada de `balance_after_transaction`
+    (sin llamada extra al ASPSP).
+- **Problemas y solución**:
+  - Task runner internal: `require('crypto')` disallowed y `$env` denegado → firmar con el
+    nodo **Crypto** (RSA-SHA256) y `Buffer`/base64url en el Code node.
+  - `GET /accounts` no existe en Enable Banking; hay que usar el flujo de sesión.
+  - `ASPSP_RATE_LIMIT_EXCEEDED` (HTTP 429) de Sabadell al llamar repetidamente a
+    `/details`, `/balances` y `/transactions`: se eliminan `details` y `balances`
+    (el saldo se deriva de `balance_after_transaction`) y el nodo de movimientos usa
+    `onError: continueRegularOutput` + reintentos, para no romper el workflow.
+- **Verificación**: 1er refresco → `inserted=20`; 2º → `inserted=0, skipped=20`. Sesión EB
+  válida hasta 2027-04-03.
+- **Commit**: (pendiente)
+
+### Sesión L — Saldo de cuenta en la app
+- **Objetivo**: mostrar el saldo almacenado (`bank_account_balances`) en la portada y en `/movimientos`.
+- **Cambios**:
+  - `lib/types.ts`: nuevo tipo `BankAccountBalance`.
+  - `/movimientos`: consulta la última instantánea por cuenta (dedupe por `account_iban`) y
+    muestra una sección **Saldo de la cuenta** (titular, IBAN, fecha `as_of`, origen).
+  - Portada `/`: server component `async` que lee la última instantánea y la muestra en la
+    tarjeta **Cuenta** (`Saldo … · fecha`).
+- **Decisiones**: se muestra el saldo *almacenado* (snapshot diario), distinto del
+  “Último saldo” derivado de movimientos de `bank_summary`.
+- **Verificación**: `npx tsc --noEmit` y `npm run lint` OK; `npm run build` OK (tras limpiar
+  `.next` por el error `EINVAL` de symlinks/OneDrive).
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -168,8 +216,9 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 ### Tablas
 - **Mercadona**: `mercadona_tickets`, `mercadona_ticket_items`, `mercadona_products`,
   `mercadona_product_aliases`, `mercadona_lines`.
-- **Banca**: `bank_transactions` (con `concept`, `category_id`, `dedup_hash` unique),
-  `bank_categories`, `bank_transaction_links`.
+- **Banca**: `bank_transactions` (con `concept`, `category_id`, `dedup_hash` unique, y
+  `source`, `account_iban`, `account_name`, `external_id`), `bank_categories`,
+  `bank_transaction_links`, `bank_account_balances` (instantánea diaria de saldo).
 - **Iberdrola**: `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`,
   `iberdrola_invoice_consumption`.
 - **Combustible (Waylet)**: `waylet_tickets`, `waylet_ticket_lines`.
@@ -177,8 +226,8 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 ### RPCs
 - Mercadona: `mercadona_upsert_ticket`, `mercadona_ticket_message_ids`,
   `mercadona_spend_summary`, `mercadona_products`, `mercadona_product_history`.
-- Banca: `bank_upsert_transactions`, `bank_summary`, `bank_match_tickets`, `bank_match_invoices`,
-  `bank_links_validate_target` (trigger).
+- Banca: `bank_upsert_transactions`, `bank_upsert_account_balances`, `bank_summary`,
+  `bank_match_tickets`, `bank_match_invoices`, `bank_links_validate_target` (trigger).
 - Iberdrola: `iberdrola_upsert_invoice`, `iberdrola_invoice_message_ids`,
   `iberdrola_summary`, `iberdrola_price_history`.
 - Waylet: `waylet_upsert_ticket`, `waylet_ticket_message_ids`, `waylet_summary`,
@@ -193,7 +242,8 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `wayl
 `20260930090015`…, `20261001092559_iberdrola-invoices`,
 `20261001094816_iberdrola-message-ids-obj`, `20261001133632_storage-iberdrola-select`,
 `20261001134653_iberdrola-price-history`, `20261002133047_waylet-tickets`,
-`20261002133222_storage-waylet-select`.
+`20261002133222_storage-waylet-select`, `20261006071518_enablebanking-transactions`,
+`20261006075208_account-balances`.
 
 ---
 
@@ -210,6 +260,7 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `wayl
 | `n8n/waylet-tickets.js` | Gmail | Ticket Waylet → extrae enlace → descarga PDF → RPC → bucket `waylet` |
 | `n8n/waylet-backfill.js` | Manual | Backfill tickets Waylet |
 | `n8n/waylet-parser.js` | (módulo) | Parser Waylet compartido |
+| (proyecto `enable_bank`) Enable Banking — Cuenta Corriente | Manual / Webhook / Schedule | Cuenta Sabadell (AIS) → `bank_upsert_transactions` |
 
 Generación/publicación desde CLI: `scripts/n8n-build.js` (necesita `N8N_MCP_TOKEN`)
 y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustando el parser).
