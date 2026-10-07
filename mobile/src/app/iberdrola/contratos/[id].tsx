@@ -26,6 +26,18 @@ export default function ContratoDetailScreen() {
   const c = data?.contract
   const sum = data?.summary
 
+  const byYear = new Map<string, { year: string; invoices: number; kwh: number; energy: number; total: number }>()
+  for (const inv of data?.invoices ?? []) {
+    const y = inv.issue_date ? String(inv.issue_date).slice(0, 4) : '—'
+    const row = byYear.get(y) ?? { year: y, invoices: 0, kwh: 0, energy: 0, total: 0 }
+    row.invoices += 1
+    row.kwh += inv.consumption_kwh ?? 0
+    row.energy += inv.energy_amount ?? 0
+    row.total += inv.total ?? 0
+    byYear.set(y, row)
+  }
+  const yearRows = Array.from(byYear.values()).sort((a, b) => b.year.localeCompare(a.year))
+
   return (
     <>
       <Stack.Screen options={{ title: c?.label ?? 'Contrato' }} />
@@ -55,6 +67,22 @@ export default function ContratoDetailScreen() {
                   <Stat label="Consumo" value={kwh(sum.totals.kwh)} />
                   <Stat label="€/kWh" value={eurPerKwh(sum.totals.eur_per_kwh)} />
                 </View>
+              </>
+            ) : null}
+
+            {yearRows.length > 0 ? (
+              <>
+                <SectionTitle>Desglose por años</SectionTitle>
+                <Card>
+                  {yearRows.map((r) => (
+                    <View key={r.year} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
+                      <Row label={r.year} value={eur(r.total)} strong />
+                      <Text style={{ color: colors.muted, fontSize: 12 }}>
+                        {num(r.invoices, 0)} facturas · {kwh(r.kwh)} · {eurPerKwh(r.kwh > 0 ? r.energy / r.kwh : null)}
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
               </>
             ) : null}
 

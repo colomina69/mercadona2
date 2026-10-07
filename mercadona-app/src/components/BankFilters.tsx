@@ -12,6 +12,7 @@ type Initial = {
   category?: string
   min?: string
   max?: string
+  year?: string
 }
 
 export function BankFilters({ initial, categories }: { initial: Initial; categories: CategoryOption[] }) {
@@ -26,6 +27,7 @@ export function BankFilters({ initial, categories }: { initial: Initial; categor
   function submit(event: React.FormEvent) {
     event.preventDefault()
     const params = new URLSearchParams()
+    if (initial.year) params.set('year', initial.year)
     if (q.trim()) params.set('q', q.trim())
     if (from) params.set('from', from)
     if (to) params.set('to', to)

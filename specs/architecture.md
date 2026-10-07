@@ -85,11 +85,17 @@ Los **vínculos** movimiento↔ticket↔factura↔repostaje se modelan en `bank_
 | `/tickets`, `/tickets/[id]` | Listado y detalle de tickets (+PDF) |
 | `/productos`, `/productos/[name]` | Catálogo y evolución de precios |
 | `/movimientos`, `/movimientos/[id]` | Movimientos bancarios, edición, vínculos |
-| `/categorias` | Tipos de gasto/ingreso |
+| `/clasificar` | Clasificar movimientos: asignar categoría y vincular tickets/facturas |
+| `/categorias` | Tipos de gasto/ingreso (y vaciarlas para rehacerlas) |
 | `/facturas`, `/facturas/[id]` | Facturas Iberdrola agrupadas por contrato |
 | `/contratos`, `/contratos/[id]` | Contratos, totales y evolución de precios |
 | `/combustible`, `/combustible/[id]` | Repostajes Waylet (+PDF) |
 | `/login` | Autenticación email/contraseña |
+
+**Filtro por año**: los resúmenes de Mercadona (`mercadona_spend_summary(p_from,p_to)`), Iberdrola
+(`iberdrola_summary`), Combustible (`waylet_summary`) y Cuenta (`bank_summary`) aceptan rango de
+fechas y se filtran por **año** con un selector (`YearFilter`) en web y móvil; el rango se aplica
+también a las listas. El detalle de contrato de Iberdrola añade un **desglose por años**.
 
 **Navegación**: la portada `/` es un hub de botones hacia las cuatro secciones. Cada sección
 muestra un **menú contextual de pills** (`SectionNav`, detecta la sección por la ruta) con sus

@@ -9,6 +9,7 @@ import { colors } from '@/lib/theme'
 
 const MENU = [
   { label: 'Movimientos', href: '/cuenta/movimientos' },
+  { label: 'Clasificar', href: '/cuenta/clasificar' },
   { label: 'Categorías', href: '/cuenta/categorias' },
 ]
 
@@ -54,6 +55,21 @@ export default function CategoriasScreen() {
     reload()
   }
 
+  async function clearAll() {
+    setBusy(true)
+    setMsg(null)
+    const { error } = await insforge.database
+      .from('bank_categories')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+    setBusy(false)
+    if (error) {
+      setMsg(error.message)
+      return
+    }
+    reload()
+  }
+
   const expenses = (data ?? []).filter((c) => c.kind === 'expense')
   const incomes = (data ?? []).filter((c) => c.kind === 'income')
 
@@ -83,6 +99,13 @@ export default function CategoriasScreen() {
               <View style={{ height: 12 }} />
               <PrimaryButton title="Añadir" onPress={create} loading={busy} disabled={!name.trim()} />
               {msg ? <Text style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}>{msg}</Text> : null}
+              <Pressable
+                onPress={clearAll}
+                disabled={busy || (data?.length ?? 0) === 0}
+                style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
+              >
+                <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Vaciar todas las categorías</Text>
+              </Pressable>
             </Card>
 
             <SectionTitle>Gastos ({expenses.length})</SectionTitle>

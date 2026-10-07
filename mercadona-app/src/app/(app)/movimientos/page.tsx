@@ -4,7 +4,9 @@ import type { BankSummary, BankTransaction, BankCategory, BankAccountBalance } f
 import { eur, num, dateOnly } from '@/lib/format'
 import { MonthlyBankChart } from '@/components/charts'
 import { BankFilters } from '@/components/BankFilters'
+import { YearFilter } from '@/components/YearFilter'
 import { BankUploadForm } from './UploadForm'
+import { resolveRange, yearsFromMonthly } from '@/lib/years'
 
 const PAGE_SIZE = 50
 const COLS =
@@ -29,20 +31,19 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'po
 export default async function MovimientosPage({
   searchParams,
 }: {
-  searchParams: { q?: string; from?: string; to?: string; min?: string; max?: string; category?: string; page?: string }
+  searchParams: { q?: string; from?: string; to?: string; min?: string; max?: string; category?: string; page?: string; year?: string }
 }) {
   const insforge = createInsForgeServerClient()
 
   const q = searchParams.q ? sanitize(searchParams.q) : ''
-  const from = searchParams.from ?? ''
-  const to = searchParams.to ?? ''
+  const { from, to } = resolveRange(searchParams.year, searchParams.from, searchParams.to)
   const category = searchParams.category ?? ''
   const min = searchParams.min ? Number(searchParams.min) : null
   const max = searchParams.max ? Number(searchParams.max) : null
   const page = Math.max(1, Number.parseInt(searchParams.page ?? '1', 10) || 1)
   const offset = (page - 1) * PAGE_SIZE
 
-  const [summaryRes, categoriesRes, listRes, balancesRes] = await Promise.all([
+  const [summaryRes, categoriesRes, listRes, balancesRes, yearsRes] = await Promise.all([
     insforge.database.rpc('bank_summary', { p_from: from || null, p_to: to || null }),
     insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
     (() => {
@@ -64,6 +65,7 @@ export default async function MovimientosPage({
       .select('account_iban, account_name, balance, currency, as_of, source')
       .order('as_of', { ascending: false })
       .limit(50),
+    insforge.database.rpc('bank_summary', {}),
   ])
 
   const summary = (summaryRes.data ?? null) as BankSummary | null
@@ -75,14 +77,18 @@ export default async function MovimientosPage({
     if (!latestByAccount.has(b.account_iban)) latestByAccount.set(b.account_iban, b)
   }
   const accounts = Array.from(latestByAccount.values())
+  const years = yearsFromMonthly((yearsRes.data as BankSummary | null)?.monthly)
   const total = listRes.count ?? transactions.length
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const buildUrl = (targetPage: number) => {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
-    if (from) params.set('from', from)
-    if (to) params.set('to', to)
+    if (searchParams.year) params.set('year', searchParams.year)
+    else {
+      if (from) params.set('from', from)
+      if (to) params.set('to', to)
+    }
     if (category) params.set('category', category)
     if (min !== null) params.set('min', String(min))
     if (max !== null) params.set('max', String(max))
@@ -98,6 +104,8 @@ export default async function MovimientosPage({
           Categorías →
         </Link>
       </div>
+
+      <YearFilter years={years} />
 
       <BankUploadForm />
 
@@ -173,7 +181,7 @@ export default async function MovimientosPage({
 
       <BankFilters
         categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
-        initial={{ q, from, to, category, min: searchParams.min, max: searchParams.max }}
+        initial={{ q, from, to, category, min: searchParams.min, max: searchParams.max, year: searchParams.year }}
       />
 
       {/* Mobile: cards */}

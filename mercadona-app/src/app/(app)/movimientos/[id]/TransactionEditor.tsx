@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getInsforgeBrowser } from '@/lib/insforge/client'
 import type { BankCategory } from '@/lib/types'
@@ -27,6 +27,21 @@ export function TransactionEditor({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [suggestion, setSuggestion] = useState<{ id: string; source: string } | null>(null)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      const { data } = await getInsforgeBrowser().database.rpc('bank_suggest_category', {
+        p_transaction_id: transactionId,
+      })
+      const sug = data as { category_id: string; source: string } | null
+      if (active && sug?.category_id) setSuggestion({ id: sug.category_id, source: sug.source })
+    })()
+    return () => {
+      active = false
+    }
+  }, [transactionId])
 
   function refreshCategories() {
     return getInsforgeBrowser()
@@ -118,6 +133,28 @@ export function TransactionEditor({
           </select>
         </div>
       </div>
+
+      {(() => {
+        const sugName = suggestion ? categories.find((c) => c.id === suggestion.id)?.name : null
+        if (!suggestion || !sugName || suggestion.id === category) return null
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm">
+            <span className="text-amber-800">
+              💡 Sugerida: <strong>{sugName}</strong>{' '}
+              <span className="text-amber-700/70">
+                ({suggestion.source === 'historial' ? 'según tus movimientos' : 'por comercio'})
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setCategory(suggestion.id)}
+              className="rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
+            >
+              Usar
+            </button>
+          </div>
+        )
+      })()}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-3">
         <span className="text-xs font-medium text-slate-500">Nueva categoría:</span>

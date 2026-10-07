@@ -42,6 +42,19 @@ export default async function ContratoDetailPage({ params }: { params: { id: str
   const power = summary?.power_by_contract?.[0]
   const tramo = new Map((summary?.consumption_by_tramo ?? []).map((t) => [t.tramo, t.kwh]))
 
+  type YearRow = { year: string; invoices: number; kwh: number; energy: number; total: number }
+  const byYear = new Map<string, YearRow>()
+  for (const inv of invoices) {
+    const y = inv.issue_date ? String(inv.issue_date).slice(0, 4) : '—'
+    const row = byYear.get(y) ?? { year: y, invoices: 0, kwh: 0, energy: 0, total: 0 }
+    row.invoices += 1
+    row.kwh += inv.consumption_kwh ?? 0
+    row.energy += inv.energy_amount ?? 0
+    row.total += inv.total ?? 0
+    byYear.set(y, row)
+  }
+  const yearRows = Array.from(byYear.values()).sort((a, b) => b.year.localeCompare(a.year))
+
   return (
     <div className="space-y-4">
       <Link href="/contratos" className="text-sm text-sky-700 hover:underline">
@@ -92,6 +105,36 @@ export default async function ContratoDetailPage({ params }: { params: { id: str
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-slate-600">Facturación por mes</h2>
           <MonthlyInvoiceChart data={summary!.monthly} />
+        </section>
+      )}
+
+      {yearRows.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-slate-600">Desglose por años</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="py-2 pr-4">Año</th>
+                  <th className="py-2 px-4 text-right">Facturas</th>
+                  <th className="py-2 px-4 text-right">Consumo</th>
+                  <th className="py-2 px-4 text-right">€/kWh</th>
+                  <th className="py-2 pl-4 text-right">Importe</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {yearRows.map((r) => (
+                  <tr key={r.year}>
+                    <td className="py-2 pr-4 font-medium text-slate-800">{r.year}</td>
+                    <td className="py-2 px-4 text-right text-slate-600">{num(r.invoices, 0)}</td>
+                    <td className="py-2 px-4 text-right text-slate-600">{kwh(r.kwh)}</td>
+                    <td className="py-2 px-4 text-right text-slate-600">{eurPerKwh(r.kwh > 0 ? r.energy / r.kwh : null)}</td>
+                    <td className="py-2 pl-4 text-right font-semibold">{eur(r.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 

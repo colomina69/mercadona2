@@ -1,11 +1,14 @@
 import { Stack } from 'expo-router'
+import { useState } from 'react'
 import { View } from 'react-native'
 import { BarChart, RankBars } from '@/components/charts'
 import { Card, Empty, ErrorBox, Loading, Screen, SectionMenu, SectionTitle, Stat } from '@/components/ui'
+import { YearFilter } from '@/components/YearFilter'
 import { eur, monthLabel, num } from '@/lib/format'
 import { insforge } from '@/lib/insforge'
 import type { SpendSummary } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
+import { yearRange, yearsFromMonthly } from '@/lib/years'
 
 const MENU = [
   { label: 'Resumen', href: '/mercadona' },
@@ -14,17 +17,25 @@ const MENU = [
 ]
 
 export default function MercadonaScreen() {
+  const [year, setYear] = useState<number | null>(null)
+
+  const { data: years } = useAsync(async () => {
+    const { data } = await insforge.database.rpc('mercadona_spend_summary')
+    return yearsFromMonthly((data as SpendSummary | null)?.monthly)
+  }, [])
+
   const { data, error, loading } = useAsync(async () => {
-    const { data, error } = await insforge.database.rpc('mercadona_spend_summary')
+    const { data, error } = await insforge.database.rpc('mercadona_spend_summary', yearRange(year))
     if (error) throw new Error(error.message)
     return data as SpendSummary | null
-  })
+  }, [year])
 
   return (
     <>
       <Stack.Screen options={{ title: 'Mercadona' }} />
       <Screen>
         <SectionMenu items={MENU} active="/mercadona" />
+        <YearFilter years={years ?? []} value={year} onChange={setYear} />
         {loading ? <Loading /> : error ? <ErrorBox message={error} /> : !data ? <Empty /> : (
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>

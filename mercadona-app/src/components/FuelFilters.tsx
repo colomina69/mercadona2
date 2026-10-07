@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 export function FuelFilters({
   initial,
 }: {
-  initial: { q?: string; fuel?: string; from?: string; to?: string; fuels?: string[] }
+  initial: { q?: string; fuel?: string; from?: string; to?: string; fuels?: string[]; year?: string }
 }) {
   const router = useRouter()
   const [q, setQ] = useState(initial.q ?? '')
@@ -17,6 +17,7 @@ export function FuelFilters({
   function submit(event: React.FormEvent) {
     event.preventDefault()
     const params = new URLSearchParams()
+    if (initial.year) params.set('year', initial.year)
     if (q.trim()) params.set('q', q.trim())
     if (fuel) params.set('fuel', fuel)
     if (from) params.set('from', from)

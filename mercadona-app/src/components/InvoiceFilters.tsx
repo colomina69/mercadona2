@@ -10,7 +10,7 @@ export function InvoiceFilters({
   initial,
 }: {
   contracts: ContractOption[]
-  initial: { contract?: string; q?: string; from?: string; to?: string }
+  initial: { contract?: string; q?: string; from?: string; to?: string; year?: string }
 }) {
   const router = useRouter()
   const [contract, setContract] = useState(initial.contract ?? '')
@@ -21,6 +21,7 @@ export function InvoiceFilters({
   function submit(event: React.FormEvent) {
     event.preventDefault()
     const params = new URLSearchParams()
+    if (initial.year) params.set('year', initial.year)
     if (contract) params.set('contract', contract)
     if (q.trim()) params.set('q', q.trim())
     if (from) params.set('from', from)

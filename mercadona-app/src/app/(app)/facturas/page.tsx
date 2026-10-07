@@ -4,6 +4,8 @@ import type { IberdrolaContract, IberdrolaInvoice, IberdrolaPricePoint, Iberdrol
 import { eur, num, dateOnly, kwh, eurPerKwh, eurPerKwDay, monthLabel } from '@/lib/format'
 import { MonthlyInvoiceChart, PriceLineChart } from '@/components/charts'
 import { InvoiceFilters } from '@/components/InvoiceFilters'
+import { YearFilter } from '@/components/YearFilter'
+import { resolveRange, yearsFromMonthly } from '@/lib/years'
 
 const MAX_ROWS = 500
 const COLS = '*, contract:iberdrola_contracts(label, contract_number)'
@@ -94,16 +96,15 @@ function InvoiceTable({ invoices }: { invoices: IberdrolaInvoice[] }) {
 export default async function FacturasPage({
   searchParams,
 }: {
-  searchParams: { contract?: string; q?: string; from?: string; to?: string }
+  searchParams: { contract?: string; q?: string; from?: string; to?: string; year?: string }
 }) {
   const insforge = createInsForgeServerClient()
 
   const contract = searchParams.contract ?? ''
   const q = searchParams.q ?? ''
-  const from = searchParams.from ?? ''
-  const to = searchParams.to ?? ''
+  const { from, to } = resolveRange(searchParams.year, searchParams.from, searchParams.to)
 
-  const [summaryRes, contractsRes, listRes, priceRes] = await Promise.all([
+  const [summaryRes, contractsRes, listRes, priceRes, yearsRes] = await Promise.all([
     insforge.database.rpc('iberdrola_summary', {
       p_contract_id: contract || null,
       p_from: from || null,
@@ -119,12 +120,14 @@ export default async function FacturasPage({
       return query.order('issue_date', { ascending: false }).limit(MAX_ROWS)
     })(),
     insforge.database.rpc('iberdrola_price_history', { p_contract_id: contract || null }),
+    insforge.database.rpc('iberdrola_summary', {}),
   ])
 
   const summary = (summaryRes.data ?? null) as IberdrolaSummary | null
   const contracts = (contractsRes.data ?? []) as IberdrolaContract[]
   const invoices = (listRes.data ?? []) as IberdrolaInvoice[]
   const priceHistory = (priceRes.data ?? []) as IberdrolaPricePoint[]
+  const years = yearsFromMonthly((yearsRes.data as IberdrolaSummary | null)?.monthly)
 
   const priceByContract = new Map<string, { label: string; energy: number | null; punta: number | null; valle: number | null }[]>()
   for (const p of priceHistory) {
@@ -178,6 +181,8 @@ export default async function FacturasPage({
         </Link>
       </div>
 
+      <YearFilter years={years} />
+
       {summary && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -198,7 +203,7 @@ export default async function FacturasPage({
 
       <InvoiceFilters
         contracts={contracts.map((c) => ({ id: c.id, label: c.label ?? c.contract_number, contract_number: c.contract_number }))}
-        initial={{ contract, q, from, to }}
+        initial={{ contract, q, from, to, year: searchParams.year }}
       />
 
       {sections.map((section, index) => {

@@ -36,6 +36,18 @@ nuevas `sorteos`, `pagos` y `push_tokens`.
   muestra **Décimos para vender / asignados / disponibles**, y un desglose de **Cobros** por método
   (**efectivo** y **bizum**, únicos métodos válidos) con el total cobrado, lo pendiente y la lista
   de abonados agrupada por método (los pagados sin método se listan aparte para revisarlos).
+- **FR-012**: Los **resúmenes de Mercadona, Iberdrola, Combustible y Cuenta** (web y móvil) se
+  pueden **filtrar por año** (selector con "Todos" + años disponibles), aplicando el rango también
+  a las listas de cada sección.
+- **FR-013**: El **detalle de un contrato de Iberdrola** (web y móvil) muestra un **desglose por
+  años** (año · nº facturas · consumo · €/kWh · importe).
+- **FR-014**: **Clasificador de movimientos** (web y móvil): asignar categoría a cada movimiento
+  (individual o en bloque), ver las categorías y **vaciarlas para rehacerlas desde cero**, y ver/
+  vincular los **tickets, facturas y repostajes archivados** sugeridos por importe/fecha.
+- **FR-015**: **Página de vincular** por movimiento (móvil `cuenta/vincular/[id]`, abierta desde el
+  clasificador, no popup): categoría **manual** + **sugerencia automática** (`bank_suggest_category`,
+  por historial y por palabras clave) y vinculación/búsqueda de tickets y facturas archivadas. En
+  web la sugerencia aparece en el editor de `/movimientos/[id]`.
 - **FR-008**: **Sin autenticación**: la app accede con la **API key admin** (app personal, no
   publicada); la clave vive en `mobile/.env` (gitignored). No se usa la tabla `push_tokens`
   (sin notificaciones en esta versión).

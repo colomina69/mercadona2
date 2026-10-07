@@ -1,11 +1,14 @@
 import { Link, Stack } from 'expo-router'
+import { useState } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { BarChart, RankBars } from '@/components/charts'
 import { Card, Empty, ErrorBox, Loading, Screen, SectionMenu, SectionTitle, Stat } from '@/components/ui'
+import { YearFilter } from '@/components/YearFilter'
 import { eur, eurPerKwh, kwh, monthLabel, num, dateOnly } from '@/lib/format'
 import { insforge } from '@/lib/insforge'
 import type { IberdrolaContract, IberdrolaInvoice, IberdrolaSummary } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
+import { yearRange, yearsFromMonthly } from '@/lib/years'
 import { colors } from '@/lib/theme'
 
 const MENU = [
@@ -14,29 +17,40 @@ const MENU = [
 ]
 
 export default function FacturasScreen() {
+  const [year, setYear] = useState<number | null>(null)
+  const range = yearRange(year)
+
+  const { data: years } = useAsync(async () => {
+    const { data } = await insforge.database.rpc('iberdrola_summary', {})
+    return yearsFromMonthly((data as IberdrolaSummary | null)?.monthly)
+  }, [])
+
   const { data, error, loading } = useAsync(async () => {
-    const [summaryRes, contractsRes, invoicesRes] = await Promise.all([
-      insforge.database.rpc('iberdrola_summary', {}),
+    const [summaryRes, contractsRes] = await Promise.all([
+      insforge.database.rpc('iberdrola_summary', { p_contract_id: null, ...range }),
       insforge.database.from('iberdrola_contracts').select('id, label, contract_number, tariff').order('contract_number'),
-      insforge.database
-        .from('iberdrola_invoices')
-        .select('*, contract:iberdrola_contracts(label, contract_number)')
-        .order('issue_date', { ascending: false })
-        .limit(200),
     ])
     if (summaryRes.error) throw new Error(summaryRes.error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = insforge.database
+      .from('iberdrola_invoices')
+      .select('*, contract:iberdrola_contracts(label, contract_number)')
+    if (range.p_from) query = query.gte('issue_date', range.p_from)
+    if (range.p_to) query = query.lte('issue_date', range.p_to)
+    const invoicesRes = await query.order('issue_date', { ascending: false }).limit(200)
     return {
       summary: summaryRes.data as IberdrolaSummary | null,
       contracts: (contractsRes.data ?? []) as IberdrolaContract[],
       invoices: (invoicesRes.data ?? []) as IberdrolaInvoice[],
     }
-  })
+  }, [year])
 
   return (
     <>
       <Stack.Screen options={{ title: 'Iberdrola' }} />
       <Screen>
         <SectionMenu items={MENU} active="/iberdrola/facturas" />
+        <YearFilter years={years ?? []} value={year} onChange={setYear} />
         {loading ? <Loading /> : error ? <ErrorBox message={error} /> : !data ? <Empty /> : (
           <>
             {data.summary ? (

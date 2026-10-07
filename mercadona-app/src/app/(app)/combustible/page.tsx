@@ -4,6 +4,8 @@ import type { WayletSummary, WayletTicket } from '@/lib/types'
 import { eur, dateTime, liters, eurPerL, fixed, monthLabel } from '@/lib/format'
 import { MonthlyFuelChart, PriceLineChart } from '@/components/charts'
 import { FuelFilters } from '@/components/FuelFilters'
+import { YearFilter } from '@/components/YearFilter'
+import { resolveRange, yearsFromMonthly } from '@/lib/years'
 
 const MAX_ROWS = 500
 
@@ -19,17 +21,17 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default async function CombustiblePage({
   searchParams,
 }: {
-  searchParams: { q?: string; fuel?: string; from?: string; to?: string }
+  searchParams: { q?: string; fuel?: string; from?: string; to?: string; year?: string }
 }) {
   const insforge = createInsForgeServerClient()
 
   const q = searchParams.q ?? ''
   const fuel = searchParams.fuel ?? ''
-  const from = searchParams.from ?? ''
-  const to = searchParams.to ?? ''
+  const { from, to } = resolveRange(searchParams.year, searchParams.from, searchParams.to)
 
-  const [summaryRes, listRes] = await Promise.all([
+  const [summaryRes, yearsRes, listRes] = await Promise.all([
     insforge.database.rpc('waylet_summary', { p_from: from || null, p_to: to || null }),
+    insforge.database.rpc('waylet_summary', {}),
     (() => {
       let query: any = insforge.database.from('waylet_tickets').select('*', { count: 'exact' })
       if (q) query = query.or(`station_name.ilike.%${q}%,locality.ilike.%${q}%,ticket_number.ilike.%${q}%`)
@@ -42,6 +44,7 @@ export default async function CombustiblePage({
 
   const summary = (summaryRes.data ?? null) as WayletSummary | null
   const tickets = (listRes.data ?? []) as WayletTicket[]
+  const years = yearsFromMonthly((yearsRes.data as WayletSummary | null)?.monthly)
 
   const priceRows = (summary?.monthly ?? []).map((m) => ({
     label: monthLabel(m.month),
@@ -55,6 +58,8 @@ export default async function CombustiblePage({
         <h1 className="text-xl font-semibold">Combustible (Waylet)</h1>
         <span className="text-sm text-slate-400">Repsol · ES GLEM S.L</span>
       </div>
+
+      <YearFilter years={years} />
 
       {summary && (
         <>
@@ -87,7 +92,7 @@ export default async function CombustiblePage({
         </>
       )}
 
-      <FuelFilters initial={{ q, fuel, from, to, fuels }} />
+      <FuelFilters initial={{ q, fuel, from, to, year: searchParams.year, fuels }} />
 
       {/* Mobile cards */}
       <div className="space-y-3 md:hidden">

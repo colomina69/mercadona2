@@ -23,6 +23,15 @@
   por método** (efectivo/bizum/otros) con la lista agrupada por método.
 - [x] T019 Métodos de pago solo **efectivo/bizum**: migración `20261007130000_metodo-pago`
   (normaliza + CHECK) y toggle efectivo↔bizum en el detalle.
+- [x] T020 Filtro por **año** en los resúmenes (web y móvil) de Mercadona, Iberdrola, Combustible y
+  Cuenta; migración `20261007150000_mercadona-summary-range` (rango en `mercadona_spend_summary`).
+- [x] T021 **Desglose por años** en el detalle de contrato de Iberdrola (web y móvil).
+- [x] T022 **Clasificador de movimientos** (web `/clasificar` + `Classifier`; móvil
+  `cuenta/clasificar`) con asignación por fila/en bloque, vinculación de tickets/facturas y
+  "Vaciar categorías".
+- [x] T023 **Página de vincular** (móvil `cuenta/vincular/[id]`) con categoría manual + **sugerencia
+  automática** (RPC `bank_suggest_category`) y búsqueda de archivados; sugerencia también en el
+  editor web `/movimientos/[id]`.
 
 ## Verificación
 

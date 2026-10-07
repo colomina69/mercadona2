@@ -39,14 +39,14 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - Dev local en **puerto 4001** (`next dev -p 4001`).
 - Rutas: `/` (portada de botones), `/mercadona` (resumen Mercadona), `/tickets`,
   `/tickets/[id]`, `/productos`, `/productos/[name]`, `/movimientos`, `/movimientos/[id]`,
-  `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
+  `/clasificar`, `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
   `/combustible`, `/combustible/[id]`, `/login`.
 - **App móvil** (`mobile/`): **Expo SDK 57 + Expo Router** (rutas en `mobile/src/app/`),
   TypeScript. Usa `@insforge/sdk` con **cliente admin** y **sin login**; estado y formateo en
   `mobile/src/lib`, UI en `mobile/src/components`. Se arranca con `npx expo start`. Rutas:
   `/`, `/mercadona`, `/mercadona/tickets[/[id]]`, `/mercadona/productos[/[name]]`,
   `/iberdrola/facturas[/[id]]`, `/iberdrola/contratos[/[id]]`, `/combustible[/[id]]`,
-  `/cuenta/movimientos[/[id]]`, `/cuenta/categorias`, `/sorteos`, `/sorteos/nuevo`,
+  `/cuenta/movimientos[/[id]]`, `/cuenta/clasificar`, `/cuenta/vincular/[id]`, `/cuenta/categorias`, `/sorteos`, `/sorteos/nuevo`,
   `/sorteos/editar/[id]`, `/sorteos/[id]`, `/sorteos/abonados[/nuevo|/[id]]`, `/pdf`.
   Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset` y `react-native-webview`;
   assets `assets/pdfjs/*.pdfjs` (PDF.js) para el visor offline.
@@ -316,6 +316,62 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Resultado**: **209 efectivo · 26 bizum · 17 pendientes** (sorteo Octubre 2026, aún sin cobrar).
 - **Commit**: (pendiente)
 
+### Sesión R — Filtro por año en los resúmenes (web + móvil)
+- **Objetivo**: filtrar por **año** los resúmenes de Mercadona, Iberdrola, Combustible y Cuenta.
+- **Backend**: migración `20261007150000_mercadona-summary-range` → `mercadona_spend_summary(p_from
+  date, p_to date)`; los otros tres (`iberdrola_summary`, `waylet_summary`, `bank_summary`) ya
+  aceptaban rango de fechas.
+- **Web**: `components/YearFilter.tsx` (pills, param `year`) en `/mercadona`, `/facturas`,
+  `/combustible`, `/movimientos`; `lib/years.ts` (`resolveRange`, `yearsFromMonthly`); el selector
+  se calcula desde un `*_summary()` sin filtro; los filtros existentes (`Bank/Invoice/Fuel`) y la
+  paginación **preservan `year`**.
+- **Móvil**: `components/YearFilter.tsx` + `lib/years.ts` en las cuatro pantallas de resumen; el RPC
+  se llama con el rango del año y las listas se filtran también.
+- **Verificación**: web `npx tsc --noEmit` + `next build` OK; móvil `npx tsc --noEmit` +
+  `expo export --platform android` OK; dev en http://localhost:4001.
+- **Commit**: (pendiente)
+
+### Sesión S — Desglose por años en contratos de Iberdrola
+- **Objetivo**: añadir el desglose por años en los contratos de Iberdrola.
+- **Cambios** (sin backend; se agrega desde las facturas ya cargadas):
+  - Web `contratos/[id]`: tabla **Desglose por años** (Año · Facturas · Consumo · €/kWh · Importe).
+  - Móvil `iberdrola/contratos/[id]`: tarjeta **Desglose por años** (por año: nº facturas · kWh ·
+    €/kWh · importe).
+- **Verificación**: web `tsc` + `next build` OK; móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión T — Clasificador de movimientos y rehacer categorías
+- **Objetivo**: asignar categoría a cada movimiento, **rehacer las categorías desde cero** y ver/
+  vincular los **tickets y facturas archivadas**.
+- **Web**: nueva ruta **`/clasificar`** + `components/Classifier.tsx` (filtro por año, "solo sin
+  categoría", búsqueda; selección múltiple con **asignación en bloque**; `<select>` de categoría por
+  fila; expandir para ver **vinculados** y **sugerencias** de tickets/facturas/repostajes con
+  Vincular/Desvincular). `CategoryManager` con botón **Vaciar todas**; `SectionNav` añade
+  **Clasificar** al grupo Cuenta.
+- **Móvil**: pantalla **`cuenta/clasificar`** (YearFilter + "solo sin categoría"; tarjetas con
+  selector de categoría en **modal** y **modal de vinculación**); `categorias` con **Vaciar todas**;
+  menús de sección de Cuenta actualizados.
+- **Nota**: `bank_transactions.category_id → bank_categories` es `ON DELETE SET NULL`, así que
+  vaciar categorías deja los movimientos sin categoría.
+- **Verificación**: web `tsc` + `next build` OK (`/clasificar`); móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión U — Página "Vincular" + sugerencia automática de categoría
+- **Objetivo**: que el vincular sea una **página** (no popup) con categoría **manual** + **sugerencia
+  automática**.
+- **Backend**: RPC `bank_suggest_category(p_transaction_id)` → `{category_id, score, source}`;
+  primero por **historial** (mismo comercio/concepto) y si no, por **palabras clave** del movimiento
+  contra los nombres de las categorías (`20261007160000` y `20261007160001`).
+- **Web**: `TransactionEditor` (`/movimientos/[id]`) muestra **“💡 Sugerida: X [Usar]”**; ya permitía
+  categoría manual y crear categorías.
+- **Móvil**: nueva página **`/cuenta/vincular/[id]`** (movimiento + categoría manual con sugerencia +
+  vinculados + sugerencias + **buscar ticket/factura archivada**). El clasificador (`/cuenta/clasificar`)
+  ahora **abre esa página** al tocar un movimiento (sin popups).
+- **Nota**: las categorías estaban a **0** (se vaciaron para rehacerlas); la sugerencia funcionará
+  en cuanto se creen categorías y haya historial.
+- **Verificación**: web `tsc` + `next build` OK; móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -339,9 +395,10 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 
 ### RPCs
 - Mercadona: `mercadona_upsert_ticket`, `mercadona_ticket_message_ids`,
-  `mercadona_spend_summary`, `mercadona_products`, `mercadona_product_history`.
+  `mercadona_spend_summary` (con `p_from`/`p_to`), `mercadona_products`, `mercadona_product_history`.
 - Banca: `bank_upsert_transactions`, `bank_upsert_account_balances`, `bank_summary`,
-  `bank_match_tickets`, `bank_match_invoices`, `bank_links_validate_target` (trigger).
+  `bank_match_tickets`, `bank_match_invoices`, `bank_suggest_category` (sugerencia de categoría por
+  historial/comercio), `bank_links_validate_target` (trigger).
 - Iberdrola: `iberdrola_upsert_invoice`, `iberdrola_invoice_message_ids`,
   `iberdrola_summary`, `iberdrola_price_history`.
 - Waylet: `waylet_upsert_ticket`, `waylet_ticket_message_ids`, `waylet_summary`,
@@ -357,7 +414,9 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `wayl
 `20261001094816_iberdrola-message-ids-obj`, `20261001133632_storage-iberdrola-select`,
 `20261001134653_iberdrola-price-history`, `20261002133047_waylet-tickets`,
 `20261002133222_storage-waylet-select`, `20261006071518_enablebanking-transactions`,
-`20261006075208_account-balances`.
+`20261006075208_account-balances`, `20261007120000_abonados`, `20261007130000_metodo-pago`,
+`20261007140000_pagos-antiguos-efectivo`, `20261007150000_mercadona-summary-range`,
+`20261007160000_bank-suggest-category`, `20261007160001_bank-suggest-category-keywords`.
 
 ---
 

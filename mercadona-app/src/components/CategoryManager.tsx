@@ -128,6 +128,22 @@ export function CategoryManager({ initial }: { initial: BankCategory[] }) {
     await reload()
   }
 
+  async function clearAll() {
+    if (!confirm('¿Eliminar TODAS las categorías? Los movimientos quedarán sin categoría.')) return
+    setBusy(true)
+    setError(null)
+    const { error: err } = await getInsforgeBrowser()
+      .database.from('bank_categories')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+    setBusy(false)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    await reload()
+  }
+
   const expenses = categories.filter((c) => c.kind === 'expense')
   const incomes = categories.filter((c) => c.kind === 'income')
 
@@ -155,6 +171,17 @@ export function CategoryManager({ initial }: { initial: BankCategory[] }) {
           </button>
         </div>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+          <p className="text-xs text-slate-400">¿Quieres empezar de cero? Borra todas y crea las tuyas.</p>
+          <button
+            type="button"
+            onClick={clearAll}
+            disabled={busy || categories.length === 0}
+            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Vaciar todas
+          </button>
+        </div>
       </form>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
