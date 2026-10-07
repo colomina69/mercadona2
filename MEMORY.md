@@ -372,6 +372,23 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Verificación**: web `tsc` + `next build` OK; móvil `tsc` + `expo export` OK.
 - **Commit**: (pendiente)
 
+### Sesión V — APK de la app móvil (build local)
+- **Objetivo**: generar un **APK instalable**.
+- **Entorno**: JDK 21 de Android Studio (`C:\Program Files\Android\Android Studio\jbr`), Android SDK
+  en `%LOCALAPPDATA%\Android\Sdk`. No se usó `eas build` (requiere login).
+- **Pasos**:
+  - `npx expo prebuild -p android --no-install` → `android/` (paquete `com.tonicolomina.misgastos`).
+  - `android/local.properties` con `sdk.dir` (gitignored).
+  - `JAVA_HOME=<jbr> ./gradlew assembleRelease` en `android/` (firma con el debug keystore).
+  - APK: `android/app/build/outputs/apk/release/app-release.apk` (**~85 MB**) → copiado a
+    `mobile/mis-gastos.apk` (gitignored con `*.apk`).
+- **Gotcha crítico (Windows)**: `assembleRelease` falla con `Filename longer than 260 characters`
+  (CMake/ninja sobre `node_modules/react-native-safe-area-context/...`). **`subst` y junctions NO
+  sirven** (AGP canonicaliza la ruta larga). Solución: **copiar el proyecto a una ruta corta**
+  (`C:\mg`, ~1,5 GB) y compilar allí (`C:\mg\android`); luego copiar el APK de vuelta.
+- **Instalar**: en el móvil, permitir "instalar apps de origen desconocido" y abrir el APK.
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -498,6 +515,14 @@ npm run build
 cd mobile && npx expo start              # Metro / Expo Go
 npx tsc --noEmit                         # typecheck
 npx expo export --platform android       # valida el bundle sin dispositivo
+
+# APK Android (local, Windows) — ver Sesión V
+# JDK: C:\Program Files\Android\Android Studio\jbr   SDK: %LOCALAPPDATA%\Android\Sdk
+npx expo prebuild -p android --no-install
+# Copiar el proyecto a ruta corta (C:\mg) para evitar el límite 260 chars de CMake:
+robocopy "<repo>\mobile" "C:\mg" /E /XD "<repo>\mobile\android\app\.cxx" "<repo>\mobile\android\app\build" "<repo>\mobile\android\build" "<repo>\mobile\android\.gradle" "<repo>\mobile\.expo"
+# Luego:  cd C:\mg\android && JAVA_HOME=<jbr> ./gradlew assembleRelease
+# APK -> C:\mg\android\app\build\outputs\apk\release\app-release.apk
 
 # InsForge CLI (raíz)
 npx -y @insforge/cli db migrations new <nombre>
