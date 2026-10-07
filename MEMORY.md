@@ -41,6 +41,15 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `/tickets/[id]`, `/productos`, `/productos/[name]`, `/movimientos`, `/movimientos/[id]`,
   `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
   `/combustible`, `/combustible/[id]`, `/login`.
+- **App móvil** (`mobile/`): **Expo SDK 57 + Expo Router** (rutas en `mobile/src/app/`),
+  TypeScript. Usa `@insforge/sdk` con **cliente admin** y **sin login**; estado y formateo en
+  `mobile/src/lib`, UI en `mobile/src/components`. Se arranca con `npx expo start`. Rutas:
+  `/`, `/mercadona`, `/mercadona/tickets[/[id]]`, `/mercadona/productos[/[name]]`,
+  `/iberdrola/facturas[/[id]]`, `/iberdrola/contratos[/[id]]`, `/combustible[/[id]]`,
+  `/cuenta/movimientos[/[id]]`, `/cuenta/categorias`, `/sorteos`, `/sorteos/nuevo`,
+  `/sorteos/editar/[id]`, `/sorteos/[id]`, `/sorteos/abonados[/nuevo|/[id]]`, `/pdf`.
+  Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset` y `react-native-webview`;
+  assets `assets/pdfjs/*.pdfjs` (PDF.js) para el visor offline.
 
 ---
 
@@ -209,6 +218,104 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `.next` por el error `EINVAL` de symlinks/OneDrive).
 - **Commit**: (pendiente)
 
+### Sesión M — App móvil Expo + Sorteos (gestión)
+- **Objetivo**: crear una app móvil (Expo) de la aplicación y una sección de **Sorteos** con las
+  tablas nuevas de InsForge.
+- **Cambios**:
+  - Nuevo proyecto **`mobile/`** (Expo SDK 57, React 19, RN 0.86, TypeScript, **Expo Router** con
+    rutas en `src/app/`). Dependencias: `expo-router`, `react-native-safe-area-context`,
+    `react-native-screens`, `expo-linking`, `expo-constants`, `react-native-gesture-handler`.
+  - `package.json` → `main: expo-router/entry`; `app.json` → name **Mis Gastos**, `scheme: misgastos`.
+    `tsconfig.json` con alias `@/* → ./src/*` (sin `baseUrl`, deprecado en TS 6).
+  - `src/lib/`: `insforge.ts` (**cliente admin** con `EXPO_PUBLIC_INSFORGE_URL/API_KEY`), `types.ts`
+    (dominio + `Sorteo`/`Pago`), `format.ts`, `theme.ts`, `useAsync.ts`.
+  - `src/components/`: `ui.tsx` (Screen, Card, Stat, BigButton, SectionMenu, Field, …), `charts.tsx`
+    (barras simples con `View`, sin dependencias nativas), `SorteoForm.tsx`.
+  - Pantallas: portada de botones (`index`), **Mercadona** (resumen/tickets/detalle/productos/detalle),
+    **Iberdrola** (facturas/contrato + detalle), **Combustible** (listado + detalle), **Cuenta**
+    (movimientos + detalle con edición de concepto/categoría y vinculación, categorías CRUD) y
+    **Sorteos** (listado, nuevo/editar, detalle con pagos de abonados: alta, marcar pagado/pendiente,
+    cantidad ±, método de pago y borrado).
+  - `metro.config.js` + `src/shims/crypto.js`: alias del builtin `crypto` de Node (ver gotcha).
+  - `PdfButton` (móvil) + visor **dentro de la app** (`/pdf`, `src/app/pdf.tsx`): descarga el PDF
+    con la cabecera `Authorization` (buckets privados) a caché (`expo-file-system/legacy`), y lo
+    renderiza con **PDF.js empaquetado como asset** (`assets/pdfjs/*.pdfjs`, ext. `pdfjs`) inyectado
+    inline (API vía `eval(atob(...))`, worker vía **blob URL**) dentro de un `WebView`
+    (`react-native-webview`), **sin CDN**. Botón secundario “Compartir / guardar” (`expo-sharing`).
+    En ticket (`mercadona`), factura (`iberdrola`) y repostaje (`waylet`).
+- **Decisiones**:
+  - **Sin login**: la app usa la **API key admin** de InsForge (`createAdminClient`), ya que las
+    tablas financieras tienen RLS de propietario y la anon key no las leería. La clave vive solo en
+    `mobile/.env` (gitignored); es una app personal no publicada.
+  - Gráficas **sin dependencias nativas** (barras con `View`) para que funcione en Expo Go.
+  - `sorteos`/`pagos`: gestión (admin). `abonado_id` **no** referencia a `auth.users` ni hay tabla de
+    abonados, así que en “Añadir pago” se introduce el UUID del abonado.
+- **Problemas y solución**:
+  - El bundle de Metro falla con `Unable to resolve module crypto` (el SDK hace `await import("crypto")`
+    en su ruta Node): se resuelve con `metro.config.js` (`resolver.extraNodeModules.crypto` → shim).
+  - `npm install` de Expo daba `ERESOLVE`: `.npmrc` con `legacy-peer-deps=true`.
+  - TS 6: `baseUrl` deprecado → `paths` sin `baseUrl`.
+- **Verificación**: `npx tsc --noEmit` OK; `npx expo export --platform android` empaqueta (1397 módulos).
+- **Commit**: (pendiente)
+
+### Sesión N — Abonados de sorteos (móvil)
+- **Objetivo**: poder editar los **abonados** y diferenciar mensuales vs extraordinarios (Nadal/Niño).
+- **Descubrimiento**: la tabla `abonados` **ya existía** (creada a mano) con `tipo` simple y 28
+  filas (todas `mensual`); `pagos.abonado_id` ya apuntaba a ellas.
+- **Cambios**:
+  - Migración `20261007120000_abonados`: normaliza a **`grupos text[]`** (multi-grupo): añade
+    `grupos`, backfill desde `tipo` (`mensual`→{mensual}, `extraordinario`→{extraordinario}),
+    `NOT NULL`, `CHECK grupos ⊆ {mensual, extraordinario}`, `DROP COLUMN tipo`, RLS + policy +
+    grants, y **FK `pagos.abonado_id → abonados(id) ON DELETE CASCADE`**.
+  - App móvil: tipos `Abonado`/`Grupo`; `AbonadoForm`; pantallas `sorteos/abonados` (lista),
+    `sorteos/abonados/nuevo`, `sorteos/abonados/[id]` (editar/eliminar + pagos); botón
+    **👥 Abonados** en Sorteos.
+  - `sorteos/[id]` reescrito: lista los abonados del **grupo del sorteo** (tipo `mensual` ↔ grupo
+    `mensual`; tipo `especial` ↔ `extraordinario`), botón **“Dar de alta a los N activos”**,
+    marcar pagado/pendiente, cantidad ±, método y borrar; sección **Otros abonados**.
+- **Decisiones**: un abonado puede estar en **varios grupos**; el grupo del sorteo se deriva de
+  `sorteos.tipo`.
+- **Problemas y solución**: el primer intento de migración creaba un índice único de `nombre` y
+  falló por un duplicado existente (“coca”); se descartó el único y se normalizó a `grupos`.
+- **Verificación**: migración aplicada; `npx tsc --noEmit` OK; `npx expo export --platform android`
+  OK.
+- **Commit**: (pendiente)
+
+### Sesión O — Cobros por método y décimos (móvil)
+- **Objetivo**: editar sorteos (sobre todo los **décimos para vender**) y, al entrar en un sorteo,
+  saber **quién ha pagado en efectivo o bizum** y las **cantidades a tener**.
+- **Cambios** (móvil, `src/app/sorteos/[id].tsx`):
+  - Tarjeta superior con **Décimos para vender / asignados / disponibles** y **Recaudado**, y botón
+    **✏️ Editar sorteo** destacado (la edición ya existía en `/sorteos/editar/[id]`).
+  - Tarjeta **Cobros**: **Efectivo**, **Bizum** y otros métodos (nº de abonados · décimos · importe),
+    **Total cobrado** y **Pendiente**.
+  - Lista de abonados **agrupada por método**: *Cobrado en efectivo*, *Cobrado en bizum*,
+    *Cobrado (otro método)*, *Pendientes de pago*, *Sin alta en este sorteo*.
+  - `SorteoForm`: etiqueta “Décimos para vender (opcional)”.
+- **Verificación**: `npx tsc --noEmit` OK; `npx expo export --platform android` OK.
+- **Commit**: (pendiente)
+
+### Sesión P — Métodos de pago: solo efectivo/bizum
+- **Objetivo**: eliminar el grupo “otro método” (aparecían 2 abonados por `'Efectivo'` en mayúscula).
+- **Cambios**:
+  - Migración `20261007130000_metodo-pago`: normaliza `lower(btrim(metodo_pago))`
+    (`'Efectivo'`→`'efectivo'`), pasa valores inválidos a `NULL`, y añade
+    `CHECK (metodo_pago IS NULL OR metodo_pago IN ('efectivo','bizum'))`.
+  - App `sorteos/[id]`: el toggle de método alterna solo **efectivo ↔ bizum**; al marcar **pagado**
+    se asigna `efectivo` si no tenía método; el grupo “Cobrado (otro método)” pasa a
+    **“Pagados sin método”** (para revisarlos).
+- **Verificación**: quedan 168 `efectivo` y 26 `bizum` (los `paid` sin método siguen `NULL`);
+  `npx tsc --noEmit` y `npx expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión Q — Pagos antiguos a efectivo
+- **Objetivo**: los 39 pagos `paid` sin método (Febrero 2026: 24; Marzo 2026: 15) pasan a contar
+  como cobrados.
+- **Cambios**: migración `20261007140000_pagos-antiguos-efectivo` → `UPDATE pagos SET
+  metodo_pago='efectivo' WHERE estado='paid' AND metodo_pago IS NULL`.
+- **Resultado**: **209 efectivo · 26 bizum · 17 pendientes** (sorteo Octubre 2026, aún sin cobrar).
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -222,6 +329,13 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Iberdrola**: `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`,
   `iberdrola_invoice_consumption`.
 - **Combustible (Waylet)**: `waylet_tickets`, `waylet_ticket_lines`.
+- **Sorteos**: `sorteos` (`nombre`, `fecha`, `precio`, `tipo` ∈ {mensual, especial},
+  `decimos_totales`), `abonados` (`nombre`, `grupos text[]` ⊆ {mensual, extraordinario}, `activo`),
+  `pagos` (`abonado_id` → `abonados(id)` ON DELETE CASCADE, `sorteo_id` → `sorteos`, `estado` ∈
+  {pending, paid}, `fecha_pago`, `metodo_pago` ∈ {efectivo, bizum} o NULL, `cantidad`, único
+  `(abonado_id, sorteo_id)`),
+  `push_tokens` (`token` único, `platform`). RLS: `sorteos`/`pagos`/`abonados` abiertas a `public`,
+  `push_tokens` a `authenticated`. Sin RPCs propias.
 
 ### RPCs
 - Mercadona: `mercadona_upsert_ticket`, `mercadona_ticket_message_ids`,
@@ -278,7 +392,11 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
    nunca funciones (Server → Client).
 6. **Parser Iberdrola**: líneas derivadas de las **fórmulas**, total de cabecera autoritativo.
 7. **Modelo específico de Iberdrola** (`iberdrola_*`) a petición; vínculos genéricos por
-   `bank_transaction_links.target_type ∈ {ticket, invoice}`.
+   `bank_transaction_links.target_type ∈ {ticket, invoice, waylet}`.
+8. **App móvil sin login con la API key admin**: evita la RLS de propietario de las tablas
+   financieras; es personal y no se publica. La clave solo vive en `mobile/.env` (gitignored).
+9. **Sorteos** como gestión (admin) sobre `sorteos`/`pagos`; sin pasarela de pago (se marca
+   `estado` y `metodo_pago` a mano).
 
 ---
 
@@ -300,6 +418,13 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
 | `next build` con `next dev` corriendo corrompe `.next` | Parar dev, `rm -rf .next`, build; reiniciar dev |
 | Fichero `nul` rompe `git add` | `rm -f ./nul` |
 | Contraste insuficiente (botones verdes) | `bg-emerald-600` → `bg-emerald-700` |
+| Metro no resuelve `crypto` (import dinámico del SDK) | Alias en `metro.config.js` → `src/shims/crypto.js` |
+| `npm install` en Expo da `ERESOLVE` | `mobile/.npmrc` con `legacy-peer-deps=true` |
+| TS 6: opción `baseUrl` deprecada | Usar `paths` sin `baseUrl` |
+| Charts con `key={d.label}` (labels repetidos: tiendas con mismo nombre) | Clave única `\`${d.label}-${i}\`` en `BarChart`/`RankBars` |
+| `createSignedUrl` con la API key admin da un strategy `direct` que exige cabecera `Authorization` (la URL no abre en el navegador) | Descargar con auth (`File.downloadFileAsync` / `expo-file-system`) y abrir en local |
+| El `WebView` de Android no renderiza PDF nativo | Visor propio `/pdf` con **PDF.js** empaquetado como asset + inline (API `eval`, worker blob) en `react-native-webview` |
+| El visor se quedaba en “Cargando PDF…” (el `<script src>` del CDN de PDF.js no cargaba en el WebView) | Empaquetar `pdf.min.js`/`pdf.worker.min.js` como assets (ext. `pdfjs` en `metro.config.js`) y leerlos en base64 para inyectarlos inline |
 
 ---
 
@@ -309,6 +434,11 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
 # App
 cd mercadona-app && npm run dev          # http://localhost:4001
 npm run build
+
+# App móvil (Expo)
+cd mobile && npx expo start              # Metro / Expo Go
+npx tsc --noEmit                         # typecheck
+npx expo export --platform android       # valida el bundle sin dispositivo
 
 # InsForge CLI (raíz)
 npx -y @insforge/cli db migrations new <nombre>

@@ -58,13 +58,25 @@
 | Dominio | Tablas | Bucket |
 |---|---|---|
 | Mercadona | `mercadona_tickets`, `mercadona_ticket_items`, `mercadona_products`, `mercadona_product_aliases`, `mercadona_lines` | `mercadona` |
-| Bancos | `bank_transactions`, `bank_categories`, `bank_transaction_links` | `bank-statements` |
+| Bancos | `bank_transactions`, `bank_categories`, `bank_transaction_links`, `bank_account_balances` | `bank-statements` |
 | Iberdrola | `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`, `iberdrola_invoice_consumption` | `iberdrola` |
+| Combustible | `waylet_tickets`, `waylet_ticket_lines` | `waylet` |
+| Sorteos | `sorteos`, `pagos`, `push_tokens` | — |
 
-Los **vínculos** movimiento↔ticket↔factura se modelan en `bank_transaction_links`
-(`target_type ∈ {ticket, invoice}`), con validación de existencia mediante trigger.
+Los **vínculos** movimiento↔ticket↔factura↔repostaje se modelan en `bank_transaction_links`
+(`target_type ∈ {ticket, invoice, waylet}`), con validación de existencia mediante trigger.
 
-## 4. Rutas de la aplicación
+## 4. Cliente móvil (Expo)
+
+- App **`mobile/`**: Expo SDK 57 + Expo Router (rutas en `mobile/src/app/`).
+- Accede a InsForge con **`createAdminClient`** (API key admin, **sin login**), porque las tablas
+  financieras tienen RLS de propietario. La clave vive en `mobile/.env` (gitignored).
+- Reutiliza las mismas tablas y RPCs que el frontend web; secciones **Mercadona, Iberdrola,
+  Combustible, Cuenta y Sorteos**.
+- `metro.config.js` aliasa el builtin `crypto` a un shim (`src/shims/crypto.js`) por una importación
+  dinámica del SDK en su ruta Node.
+
+## 5. Rutas de la aplicación web
 
 | Ruta | Descripción |
 |---|---|
@@ -84,15 +96,16 @@ muestra un **menú contextual de pills** (`SectionNav`, detecta la sección por 
 sub-páginas, visible también en las páginas de detalle. En la cabecera, el botón **Inicio**
 (enlace a `/`) está disponible desde cualquier página. No hay menú global.
 
-## 5. Integraciones externas
+## 6. Integraciones externas
 
 - **Gmail** (n8n): `ticket_digital@mail.mercadona.com`, `clientes@clientesiberdrola.es`.
 - **InsForge API** (`https://insforge.benicolo.com`): PostgREST + Storage + Auth.
 - **n8n** (`https://n8n.benicolo.com`): automatizaciones publicadas.
 - **Vercel**: hosting del frontend (proyecto `insforge`).
 
-## 6. Entornos
+## 7. Entornos
 
-- **Producción app**: `https://insforge-mu.vercel.app` (Vercel, proyecto `insforge`).
+- **Producción app web**: `https://insforge-mu.vercel.app` (Vercel, proyecto `insforge`).
 - **Backend**: proyecto InsForge `oss-project` en `https://insforge.benicolo.com`.
-- **Desarrollo local**: `next dev -p 4001`, claves en `.env.local`.
+- **Desarrollo web**: `next dev -p 4001`, claves en `mercadona-app/.env.local`.
+- **App móvil**: `cd mobile && npx expo start` (Expo Go); claves en `mobile/.env`.

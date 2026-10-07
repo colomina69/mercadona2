@@ -1,0 +1,30 @@
+# 005 — Tareas
+
+## Proyecto
+
+- [x] T001 Scaffold Expo (`blank-typescript`) en `mobile/`; añadir Expo Router y deps.
+- [x] T002 Configurar `package.json` (`expo-router/entry`), `app.json` (scheme), `tsconfig` (paths).
+- [x] T003 `.npmrc` (legacy-peer-deps), `metro.config.js` + `src/shims/crypto.js`, `.env(.example)`.
+- [x] T004 `src/lib`: `insforge.ts` (admin), `types.ts`, `format.ts`, `theme.ts`, `useAsync.ts`.
+- [x] T005 `src/components`: `ui.tsx`, `charts.tsx`, `SorteoForm.tsx`.
+
+## Pantallas
+
+- [x] T010 `_layout.tsx` (Stack) + `index.tsx` (portada de botones + saldo).
+- [x] T011 Mercadona: `index`, `tickets`, `tickets/[id]`, `productos`, `productos/[name]`.
+- [x] T012 Iberdrola: `facturas`, `facturas/[id]`, `contratos`, `contratos/[id]`.
+- [x] T013 Combustible: `index`, `[id]`.
+- [x] T014 Cuenta: `movimientos`, `movimientos/[id]` (editar + vincular), `categorias`.
+- [x] T015 Sorteos: `index`, `nuevo`, `editar/[id]`, `[id]` (gestión de pagos).
+- [x] T016 `PdfButton` (descarga autenticada) + visor in-app `/pdf` (PDF.js en `WebView`).
+- [x] T017 Abonados: `sorteos/abonados` (lista), `nuevo`, `[id]`; `AbonadoForm` y grupos múltiples;
+  migración `20261007120000_abonados` (grupos + FK pagos→abonados).
+- [x] T018 Detalle de sorteo: décimos (vender/asignados/disponibles), edición destacada y **Cobros
+  por método** (efectivo/bizum/otros) con la lista agrupada por método.
+- [x] T019 Métodos de pago solo **efectivo/bizum**: migración `20261007130000_metodo-pago`
+  (normaliza + CHECK) y toggle efectivo↔bizum en el detalle.
+
+## Verificación
+
+- [x] T090 `npx tsc --noEmit` sin errores.
+- [x] T091 `npx expo export --platform android` empaqueta correctamente.

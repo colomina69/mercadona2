@@ -14,11 +14,12 @@ tiene su carpeta con `spec.md` (qué/por qué), `plan.md` (cómo), `data-model.m
 | [002-banca/](002-banca/spec.md) | Movimientos bancarios, categorías y vínculos |
 | [003-iberdrola/](003-iberdrola/spec.md) | Facturas y contratos de Iberdrola, precios |
 | [004-waylet/](004-waylet/spec.md) | Tickets de combustible Waylet (Repsol) |
+| [005-movil/](005-movil/spec.md) | App móvil Expo y Sorteos (gestión) |
 
 ## Orden de lectura recomendado
 
 1. `constitution.md` — reglas del proyecto.
 2. `architecture.md` — cómo encajan las piezas.
-3. `001`, `002`, `003` — funcionalidad a funcionalidad.
+3. `001`…`004` — funcionalidad a funcionalidad; `005` — cliente móvil.
 
-> Estado: los tres dominios están **implementados**; los `tasks.md` reflejan lo construido.
+> Estado: los dominios web están **implementados**; la app móvil (`mobile/`) y Sorteos también.
