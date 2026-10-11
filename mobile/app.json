@@ -27,7 +27,14 @@
       "expo-router",
       "expo-status-bar",
       "expo-sharing",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite acceder a tus fotos para adjuntar el ticket.",
+          "cameraPermission": "Permite usar la cámara para fotografiar el ticket."
+        }
+      ]
     ]
   }
 }

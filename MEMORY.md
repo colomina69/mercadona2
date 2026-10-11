@@ -40,15 +40,18 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - Rutas: `/` (portada de botones), `/mercadona` (resumen Mercadona), `/tickets`,
   `/tickets/[id]`, `/productos`, `/productos/[name]`, `/movimientos`, `/movimientos/[id]`,
   `/clasificar`, `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
-  `/combustible`, `/combustible/[id]`, `/login`.
+  `/combustible`, `/combustible/[id]`, `/proveedores`, `/proveedores/[id]`, `/fotos`,
+  `/fotos/[id]`, `/login`.
 - **App móvil** (`mobile/`): **Expo SDK 57 + Expo Router** (rutas en `mobile/src/app/`),
   TypeScript. Usa `@insforge/sdk` con **cliente admin** y **sin login**; estado y formateo en
   `mobile/src/lib`, UI en `mobile/src/components`. Se arranca con `npx expo start`. Rutas:
   `/`, `/mercadona`, `/mercadona/tickets[/[id]]`, `/mercadona/productos[/[name]]`,
   `/iberdrola/facturas[/[id]]`, `/iberdrola/contratos[/[id]]`, `/combustible[/[id]]`,
+  `/proveedores[/[id]]`, `/fotos[/[id]]`,
   `/cuenta/movimientos[/[id]]`, `/cuenta/clasificar`, `/cuenta/vincular/[id]`, `/cuenta/categorias`, `/sorteos`, `/sorteos/nuevo`,
   `/sorteos/editar/[id]`, `/sorteos/[id]`, `/sorteos/abonados[/nuevo|/[id]]`, `/pdf`.
-  Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset` y `react-native-webview`;
+  Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset`, `react-native-webview`,
+  `expo-image-picker` (cámara/galería) y `expo-text-extractor` (OCR on-device, requiere **dev build/APK**);
   assets `assets/pdfjs/*.pdfjs` (PDF.js) para el visor offline.
 
 ---
@@ -389,6 +392,85 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Instalar**: en el móvil, permitir "instalar apps de origen desconocido" y abrir el APK.
 - **Commit**: (pendiente)
 
+### Sesión W — Facturas de proveedores (Transportes Albero S.L.)
+- **Objetivo**: replicar el flujo de Mercadona para el proveedor **Transportes Albero S.L.**
+  (NIF B03075116, gasóleo C), con sección **genérica de proveedores**.
+- **Muestra**: `docs/samples/albero/NE_0001_25760098_20250120.pdf` (nota de entrega/factura).
+- **Parser**: `n8n/albero-parser.js` (soporta layouts de `pdftotext` y de n8n) → nº factura, fecha,
+  albarán, producto, cantidad, precio, base/IVA/total, forma de pago, matrícula, conductor,
+  densidad, CAE/CRE.
+- **Backend**: migración `20261007170000_supplier-invoices` → `supplier_invoices` +
+  `supplier_invoice_lines`, RLS owner, RPC `supplier_invoice_upsert` (idempotente por
+  proveedor+nº factura), `supplier_invoice_message_ids`, `supplier_summary(p_from,p_to,p_supplier)`,
+  `bank_match_supplier` y `target_type='supplier'` en `bank_transaction_links`. Bucket `suppliers`
+  + migración `20261007170001_storage-suppliers-select` (policy).
+- **n8n**: workflow `n8n/supplier-invoices.js` (**id `HCpCCq9WSWQNqmCT`**, publicado): Gmail
+  (`from:maque@alberosl.com has:attachment`) → Expand PDFs → Extract → **Parse Albero** →
+  `supplier_invoice_upsert` → Reattach → Upload a `suppliers`.
+  - **Backfill**: `n8n/supplier-backfill.js` (**id `JlVeaSE06Kn34oiu`**, manual) lee **todas** las
+    facturas antiguas del proveedor en Gmail, con dedup por `supplier_invoice_message_ids` y por
+    objetos ya en el bucket.
+- **App**: web `/proveedores` (+ `/proveedores/[id]`) y móvil `/proveedores` (+ `[id]`), con
+  filtro por año, totales y PDF; grupos/nav y portada actualizados.
+- **Seed**: subida la factura de ejemplo al bucket y llamada a la RPC (invoice id
+  `0b3734c0-c978-4b59-8a2a-5e3c6451828d`).
+- **Verificación**: web `tsc` + `next build` OK (`/proveedores`); móvil `tsc` + `expo export` OK.
+- **Problemas y solución (backfill)**: cada correo trae **2 PDFs**: la **factura** (`NE_...`, con nº
+  de factura) y un **documento de responsabilidad** (`DU-...`, sin nº). Se **guardan los dos** en el
+  bucket, pero solo la factura genera registro. Implementación: el nodo *Parse Albero* **agrupa por
+  `messageId`** (factura + responsable) y añade a la fila `responsibility_pdf_key/url/filename`
+  (columnas nuevas, migración `20261007180000_supplier-responsibility-doc`); el nodo **Split Files**
+  emite 2 items (factura y responsable) que el nodo *Upload* sube a `suppliers`. Los PDFs sin nº de
+  factura ya **no** provocan error (`NOT NULL`).
+- **Gotcha**: el dedup del backfill es por `message_id`; si una factura se importó **antes** de
+  soportar el DU, no se reprocesa. Para reimportar con el documento hay que **vaciar**
+  `supplier_invoices` y relanzar. Verificado: tras vaciar + reejecutar, quedan 2 facturas con su
+  `responsibility_pdf_key` y **4 PDFs** en `suppliers` (NE + DU de cada correo).
+- **Pendiente**: en n8n, **asignar manualmente** las credenciales `Gmail account` e `InsForge` al
+  workflow nuevo.
+- **Commit**: (pendiente)
+
+### Sesión X — Tickets por foto (OCR en la app → n8n)
+- **Objetivo**: enviar una **foto de un ticket** desde la app, reconocer el texto, guardarla y
+  revisarla/editar los datos.
+- **Backend**: migración `20261008100000_photo-tickets` → tablas `photo_tickets` +
+  `photo_ticket_lines`, RLS owner, RPC `photo_ticket_create(jsonb)` y
+  `photo_ticket_update(id, campos, líneas)`. Bucket privado **`receipts`** +
+  `20261008100100_storage-receipts-select`.
+- **n8n**: workflow `n8n/ticket-photo.js` (**id `LP8wMw6VkQgsnqYX`**, publicado): webhook
+  `POST /webhook/ticket-photo` (+ token `ph_ti_…`) → sube la imagen a `receipts` → `photo_ticket_create`
+  → responde `{ok,id}`. Token en `N8N_PHOTO_WEBHOOK_URL/TOKEN` (web `.env.local`) y
+  `EXPO_PUBLIC_N8N_PHOTO_WEBHOOK_*` (móvil `.env`).
+- **OCR clásico en la app** (no en n8n): web con `tesseract.js` (español) y móvil con
+  `expo-text-extractor` (ML Kit/Vision). Luego la app **POSTea** imagen + texto al webhook.
+- **App**: web `/fotos` (+ `/fotos/[id]` con editor) y móvil `/fotos` (+ `[id]`, cámara/galería);
+  nav/portada actualizados.
+- **Notas**: `expo-text-extractor` es módulo nativo → el móvil necesita **dev build/APK** (no Expo Go).
+  Cargarlo en **Expo Go cierra la app** (crash nativo); por eso el OCR se **desactiva en Expo Go**
+  (`Constants.appOwnership === 'expo'` → `CAN_OCR=false`) y se importa de forma perezosa con
+  try/catch. En Expo Go la foto se sube **sin OCR** (rellenas a mano); en APK/dev build hace OCR.
+- **Gotcha (subida)**: el `fetch` de Expo SDK 57 rechaza el `FormData` clásico con
+  `{ uri, name, type }` (`Unsupported FormDataPart implementation`), y su `Blob` global no acepta
+  `ArrayBuffer` (`Creating blobs from 'ArrayBuffer'… are not supported`). Solución: añadir
+  directamente el **`File`** de `expo-file-system` (implementa `bytes()`, que el `fetch` sí admite):
+  `form.append('data', new File(uri) as any, name)`.
+- **APK**: recompilado con los módulos nativos (`expo-image-picker` + `expo-text-extractor`) →
+  `mobile/mis-gastos.apk` (~86 MB). `expo prebuild -p android --clean` + build en `C:\mg` (ver
+  Sesión V).
+- **Gotcha (n8n webhook multipart)**: el nodo Webhook guarda el fichero como **`data0`**
+  (nombre-campo + índice), NO `data`. El `Build` lee la **primera clave binaria**
+  (`Object.keys(item.binary)[0]`). Además, los nodos HTTP de este workflow llevan la cabecera
+  **`Authorization: Bearer <API key>`** en `headerParameters` (no usan credencial), así no hace
+  falta asignar la credencial `InsForge`.
+- **Parseo del OCR**: el `Build` extrae del texto OCR (genérico) **fecha** (dd/mm/aaaa o ISO),
+  **tienda** (primera línea con letras), **nº ticket**, **subtotal** y **total** (el **último**
+  `\bTOTAL\b` real, sin confundirlo con `SUBTOTAL`), y los pasa a `photo_ticket_create` → la app
+  abre el detalle con los campos ya rellenos (editables).
+- **Pendiente**: nada en n8n (el workflow ya funciona; se probó con `curl` → sube la imagen y crea
+  la fila con su `image_key`).
+- **Verificación**: web `tsc` + `next build` OK (`/fotos`); móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -402,6 +484,13 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Iberdrola**: `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`,
   `iberdrola_invoice_consumption`.
 - **Combustible (Waylet)**: `waylet_tickets`, `waylet_ticket_lines`.
+- **Proveedores**: `supplier_invoices` (proveedor, nº factura único por proveedor, fechas,
+  producto/cantidad/precio, base/IVA/total, forma de pago, `pdf_key`, `message_id`,
+  `responsibility_pdf_key`/`url`/`filename` para el documento de responsabilidad),
+  `supplier_invoice_lines`.
+- **Tickets por foto**: `photo_tickets` (`captured_at`, `purchased_at`, `store_name`,
+  `ticket_number`, `total`, `subtotal`, `status` ∈ {pendiente, revisado}, `raw_text`, `image_key`,
+  `image_url`, `notes`), `photo_ticket_lines`.
 - **Sorteos**: `sorteos` (`nombre`, `fecha`, `precio`, `tipo` ∈ {mensual, especial},
   `decimos_totales`), `abonados` (`nombre`, `grupos text[]` ⊆ {mensual, extraordinario}, `activo`),
   `pagos` (`abonado_id` → `abonados(id)` ON DELETE CASCADE, `sorteo_id` → `sorteos`, `estado` ∈
@@ -420,10 +509,14 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `iberdrola_summary`, `iberdrola_price_history`.
 - Waylet: `waylet_upsert_ticket`, `waylet_ticket_message_ids`, `waylet_summary`,
   `bank_match_waylet`.
+- Proveedores: `supplier_invoice_upsert`, `supplier_invoice_message_ids`, `supplier_summary`,
+  `bank_match_supplier`.
+- Tickets por foto: `photo_ticket_create`, `photo_ticket_update`.
 
 ### Buckets (todos privados)
-`mercadona`, `bank-statements`, `iberdrola`, `waylet`.
-Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `waylet` (owner).
+`mercadona`, `bank-statements`, `iberdrola`, `waylet`, `suppliers`, `receipts`.
+Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola`, `waylet`, `suppliers` y
+`receipts` (owner).
 
 ### Migraciones aplicadas
 `20260930082032_bank-transactions`, `20260930090015_bank-categories-and-links`,
@@ -433,7 +526,10 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `wayl
 `20261002133222_storage-waylet-select`, `20261006071518_enablebanking-transactions`,
 `20261006075208_account-balances`, `20261007120000_abonados`, `20261007130000_metodo-pago`,
 `20261007140000_pagos-antiguos-efectivo`, `20261007150000_mercadona-summary-range`,
-`20261007160000_bank-suggest-category`, `20261007160001_bank-suggest-category-keywords`.
+`20261007160000_bank-suggest-category`, `20261007160001_bank-suggest-category-keywords`,
+`20261007170000_supplier-invoices`, `20261007170001_storage-suppliers-select`,
+`20261007180000_supplier-responsibility-doc`, `20261008100000_photo-tickets`,
+`20261008100100_storage-receipts-select`.
 
 ---
 
@@ -450,6 +546,10 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola` y `wayl
 | `n8n/waylet-tickets.js` | Gmail | Ticket Waylet → extrae enlace → descarga PDF → RPC → bucket `waylet` |
 | `n8n/waylet-backfill.js` | Manual | Backfill tickets Waylet |
 | `n8n/waylet-parser.js` | (módulo) | Parser Waylet compartido |
+| `n8n/supplier-invoices.js` | Gmail | Facturas de proveedor (Albero) → PDF → RPC → bucket `suppliers` (id `HCpCCq9WSWQNqmCT`) |
+| `n8n/supplier-backfill.js` | Manual | Lee facturas antiguas de Albero (dedup por `message_id`) → RPC → bucket (id `JlVeaSE06Kn34oiu`) |
+| `n8n/albero-parser.js` | (módulo) | Parser Transportes Albero |
+| `n8n/ticket-photo.js` | Webhook + token | Foto de ticket → bucket `receipts` → `photo_ticket_create` (id `LP8wMw6VkQgsnqYX`) |
 | (proyecto `enable_bank`) Enable Banking — Cuenta Corriente | Manual / Webhook / Schedule | Cuenta Sabadell (AIS) → `bank_upsert_transactions` |
 
 Generación/publicación desde CLI: `scripts/n8n-build.js` (necesita `N8N_MCP_TOKEN`)

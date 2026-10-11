@@ -86,3 +86,51 @@ export async function uploadBankFileAction(formData: FormData): Promise<BankUplo
     return { ok: false, error: err instanceof Error ? err.message : 'Error llamando al webhook.' }
   }
 }
+
+export type TicketPhotoResult = {
+  ok: boolean
+  id?: string
+  error?: string
+}
+
+export async function uploadTicketPhotoAction(formData: FormData): Promise<TicketPhotoResult> {
+  const url = process.env.N8N_PHOTO_WEBHOOK_URL
+  const token = process.env.N8N_PHOTO_WEBHOOK_TOKEN
+
+  if (!url || !token) {
+    return { ok: false, error: 'Falta configurar N8N_PHOTO_WEBHOOK_URL / N8N_PHOTO_WEBHOOK_TOKEN en el entorno.' }
+  }
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'Selecciona una imagen válida.' }
+  }
+  const rawText = String(formData.get('raw_text') ?? '')
+
+  const remote = new FormData()
+  remote.append('data', file, file.name || 'ticket.jpg')
+  remote.append('raw_text', rawText)
+  remote.append('captured_at', new Date().toISOString())
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'x-webhook-token': token },
+      body: remote,
+      cache: 'no-store',
+    })
+    const text = await res.text()
+    let data: TicketPhotoResult | null = null
+    try {
+      data = text ? (JSON.parse(text) as TicketPhotoResult) : null
+    } catch {
+      data = null
+    }
+    if (!res.ok || !data?.ok || !data.id) {
+      return { ok: false, error: data?.error ?? `El webhook respondió con estado ${res.status}.` }
+    }
+    return { ok: true, id: data.id }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error llamando al webhook.' }
+  }
+}

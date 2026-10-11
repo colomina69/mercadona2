@@ -315,3 +315,87 @@ export type WayletCandidate = {
   date_diff: number
   linked: boolean
 }
+
+export type SupplierInvoice = {
+  id: string
+  supplier_name: string
+  supplier_tax_id: string | null
+  supplier_email: string | null
+  supplier_phone: string | null
+  invoice_number: string
+  issue_date: string | null
+  delivery_date: string | null
+  document_type: string | null
+  product: string | null
+  quantity: number | null
+  unit: string | null
+  unit_price: number | null
+  base: number | null
+  vat_rate: number | null
+  vat_amount: number | null
+  total: number | null
+  payment_method: string | null
+  customer_name: string | null
+  customer_tax_id: string | null
+  albaran: string | null
+  pedido: string | null
+  alb_circu: string | null
+  cae: string | null
+  cre: string | null
+  ref_local: string | null
+  plate: string | null
+  driver: string | null
+  density: number | null
+  pdf_key: string | null
+  pdf_url: string | null
+  responsibility_pdf_key: string | null
+  responsibility_pdf_url: string | null
+  responsibility_filename: string | null
+}
+
+export type SupplierInvoiceLine = {
+  id: string
+  invoice_id: string
+  line_no: number
+  product_name: string | null
+  quantity: number | null
+  unit: string | null
+  unit_price: number | null
+  amount: number | null
+  vat_rate: number | null
+}
+
+export type SupplierSummary = {
+  totals: { invoices: number; base: number; vat: number; total: number }
+  monthly: { month: string; total: number; count: number }[]
+  by_supplier: { supplier: string; tax_id: string | null; invoices: number; total: number }[]
+  by_product: { product: string; invoices: number; quantity: number; total: number }[]
+}
+
+export type PhotoTicket = {
+  id: string
+  captured_at: string | null
+  purchased_at: string | null
+  store_name: string | null
+  ticket_number: string | null
+  total: number | null
+  subtotal: number | null
+  status: 'pendiente' | 'revisado' | string
+  raw_text: string | null
+  image_key: string | null
+  image_url: string | null
+  notes: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type PhotoTicketLine = {
+  id: string
+  ticket_id: string
+  line_no: number
+  product_name: string | null
+  quantity: number | null
+  unit: string | null
+  unit_price: number | null
+  amount: number | null
+}

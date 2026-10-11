@@ -32,6 +32,8 @@ export default function HomeScreen() {
         <BigButton emoji="🥕" title="Mercadona" description="Tickets, productos y gasto" href="/mercadona" accent={colors.emeraldSoft} />
         <BigButton emoji="⚡" title="Iberdrola" description="Facturas y contratos de luz" href="/iberdrola/facturas" accent="#fffbeb" />
         <BigButton emoji="⛽" title="Combustible" description="Repostajes Waylet" href="/combustible" accent="#f0f9ff" />
+        <BigButton emoji="🚚" title="Proveedores" description="Facturas de proveedores" href="/proveedores" accent="#fff1f2" />
+        <BigButton emoji="📷" title="Tickets por foto" description="Haz una foto y revísala" href="/fotos" accent="#f7fee7" />
         <BigButton emoji="🏦" title="Cuenta" description={accountDesc} href="/cuenta/movimientos" accent="#f5f3ff" />
         <BigButton emoji="🎟️" title="Sorteos" description="Gestión de sorteos y pagos" href="/sorteos" accent="#fef2f2" />
       </Screen>

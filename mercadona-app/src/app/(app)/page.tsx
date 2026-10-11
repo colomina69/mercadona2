@@ -33,6 +33,20 @@ const SECTIONS: Section[] = [
     accent: 'bg-sky-50 text-sky-700',
   },
   {
+    href: '/proveedores',
+    emoji: '🚚',
+    title: 'Proveedores',
+    description: 'Facturas de proveedores',
+    accent: 'bg-rose-50 text-rose-700',
+  },
+  {
+    href: '/fotos',
+    emoji: '📷',
+    title: 'Tickets por foto',
+    description: 'Haz una foto y revísala',
+    accent: 'bg-lime-50 text-lime-700',
+  },
+  {
     href: '/movimientos',
     emoji: '🏦',
     title: 'Cuenta',

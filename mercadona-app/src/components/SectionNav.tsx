@@ -33,6 +33,16 @@ const SECTIONS: Section[] = [
     links: [{ href: '/combustible', label: 'Repostajes' }],
   },
   {
+    key: 'proveedores',
+    label: 'Proveedores',
+    links: [{ href: '/proveedores', label: 'Facturas' }],
+  },
+  {
+    key: 'fotos',
+    label: 'Tickets por foto',
+    links: [{ href: '/fotos', label: 'Fotos' }],
+  },
+  {
     key: 'cuenta',
     label: 'Cuenta',
     links: [

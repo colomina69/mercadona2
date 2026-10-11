@@ -32,6 +32,12 @@
 - [x] T023 **Página de vincular** (móvil `cuenta/vincular/[id]`) con categoría manual + **sugerencia
   automática** (RPC `bank_suggest_category`) y búsqueda de archivados; sugerencia también en el
   editor web `/movimientos/[id]`.
+- [x] T024 **Proveedores** (Transportes Albero): parser `n8n/albero-parser.js`, migración
+  `20261007170000_supplier-invoices` (+ storage `suppliers`), workflow n8n `supplier-invoices.js`,
+  y secciones web/móvil `/proveedores` (+ detalle).
+- [x] T025 **Tickets por foto**: migración `20261008100000_photo-tickets` (+ bucket `receipts`),
+  workflow n8n `ticket-photo.js` (webhook + token), OCR en la app (web `tesseract.js`, móvil
+  `expo-text-extractor`) y secciones `/fotos` (+ detalle) en web y móvil.
 
 ## Verificación
 

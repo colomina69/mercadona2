@@ -61,10 +61,13 @@
 | Bancos | `bank_transactions`, `bank_categories`, `bank_transaction_links`, `bank_account_balances` | `bank-statements` |
 | Iberdrola | `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`, `iberdrola_invoice_consumption` | `iberdrola` |
 | Combustible | `waylet_tickets`, `waylet_ticket_lines` | `waylet` |
+| Proveedores | `supplier_invoices`, `supplier_invoice_lines` | `suppliers` |
+| Tickets por foto | `photo_tickets`, `photo_ticket_lines` | `receipts` |
 | Sorteos | `sorteos`, `pagos`, `push_tokens` | — |
 
-Los **vínculos** movimiento↔ticket↔factura↔repostaje se modelan en `bank_transaction_links`
-(`target_type ∈ {ticket, invoice, waylet}`), con validación de existencia mediante trigger.
+Los **vínculos** movimiento↔ticket↔factura↔repostaje↔factura de proveedor se modelan en
+`bank_transaction_links` (`target_type ∈ {ticket, invoice, waylet, supplier}`), con validación de
+existencia mediante trigger.
 
 ## 4. Cliente móvil (Expo)
 
@@ -72,7 +75,7 @@ Los **vínculos** movimiento↔ticket↔factura↔repostaje se modelan en `bank_
 - Accede a InsForge con **`createAdminClient`** (API key admin, **sin login**), porque las tablas
   financieras tienen RLS de propietario. La clave vive en `mobile/.env` (gitignored).
 - Reutiliza las mismas tablas y RPCs que el frontend web; secciones **Mercadona, Iberdrola,
-  Combustible, Cuenta y Sorteos**.
+  Combustible, Proveedores, Tickets por foto, Cuenta y Sorteos**.
 - `metro.config.js` aliasa el builtin `crypto` a un shim (`src/shims/crypto.js`) por una importación
   dinámica del SDK en su ruta Node.
 
@@ -90,6 +93,8 @@ Los **vínculos** movimiento↔ticket↔factura↔repostaje se modelan en `bank_
 | `/facturas`, `/facturas/[id]` | Facturas Iberdrola agrupadas por contrato |
 | `/contratos`, `/contratos/[id]` | Contratos, totales y evolución de precios |
 | `/combustible`, `/combustible/[id]` | Repostajes Waylet (+PDF) |
+| `/proveedores`, `/proveedores/[id]` | Facturas de proveedores (Transportes Albero) (+PDF) |
+| `/fotos`, `/fotos/[id]` | Tickets por foto: se sube la imagen (OCR en la app) y se revisa/edita |
 | `/login` | Autenticación email/contraseña |
 
 **Filtro por año**: los resúmenes de Mercadona (`mercadona_spend_summary(p_from,p_to)`), Iberdrola
