@@ -1,27 +1,29 @@
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Badge, Card, Empty, ErrorBox, Field, Loading, PrimaryButton, Row, Screen, SectionTitle } from '@/components/ui'
+import { CategoryCreator } from '@/components/CategoryCreator'
 import { dateOnly, eur } from '@/lib/format'
 import { insforge } from '@/lib/insforge'
 import type { BankCategory, BankTransaction } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 import { colors } from '@/lib/theme'
 
-type Sug = { type: 'ticket' | 'invoice' | 'waylet'; id: string; label: string; sub: string; amount: number | null; linked: boolean }
+type Sug = { type: 'ticket' | 'invoice' | 'waylet' | 'photo_ticket'; id: string; label: string; sub: string; amount: number | null; linked: boolean }
 type LinkedItem = { id: string; target_type: string; target_id: string; label: string }
 
 export default function VincularScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
 
   const { data, error, loading, reload } = useAsync(async () => {
-    const [txRes, catsRes, linksRes, tRes, iRes, wRes, sugRes] = await Promise.all([
+    const [txRes, catsRes, linksRes, tRes, iRes, wRes, pRes, sugRes] = await Promise.all([
       insforge.database.from('bank_transactions').select('*').eq('id', id).maybeSingle(),
-      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
+      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order, parent_id').order('kind').order('sort_order'),
       insforge.database.from('bank_transaction_links').select('id, target_type, target_id').eq('transaction_id', id),
       insforge.database.rpc('bank_match_tickets', { p_transaction_id: id }),
       insforge.database.rpc('bank_match_invoices', { p_transaction_id: id }),
       insforge.database.rpc('bank_match_waylet', { p_transaction_id: id }),
+      insforge.database.rpc('bank_match_photo_tickets', { p_transaction_id: id }),
       insforge.database.rpc('bank_suggest_category', { p_transaction_id: id }),
     ])
     if (txRes.error) throw new Error(txRes.error.message)
@@ -36,6 +38,10 @@ export default function VincularScreen() {
         if (l.target_type === 'invoice') {
           const { data } = await insforge.database.from('iberdrola_invoices').select('invoice_number').eq('id', l.target_id).maybeSingle()
           return { id: l.id, target_type: l.target_type, target_id: l.target_id, label: String(data?.invoice_number ?? 'Factura') }
+        }
+        if (l.target_type === 'photo_ticket') {
+          const { data } = await insforge.database.from('photo_tickets').select('store_name').eq('id', l.target_id).maybeSingle()
+          return { id: l.id, target_type: l.target_type, target_id: l.target_id, label: String(data?.store_name ?? 'Ticket foto') }
         }
         const { data } = await insforge.database.from('waylet_tickets').select('station_name').eq('id', l.target_id).maybeSingle()
         return { id: l.id, target_type: l.target_type, target_id: l.target_id, label: String(data?.station_name ?? 'Repostaje') }
@@ -52,6 +58,9 @@ export default function VincularScreen() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const t of (wRes.data ?? []) as any[])
       sugs.push({ type: 'waylet', id: String(t.id), label: String(t.station_name ?? 'Repostaje'), sub: `${dateOnly(t.purchased_at)} · ±${t.date_diff}d`, amount: t.total ?? null, linked: linkedIds.has(String(t.id)) })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const t of (pRes.data ?? []) as any[])
+      sugs.push({ type: 'photo_ticket', id: String(t.id), label: String(t.store_name ?? 'Ticket foto'), sub: `${dateOnly(t.purchased_at)} · ±${t.date_diff}d`, amount: t.total ?? null, linked: linkedIds.has(String(t.id)) })
 
     const sug = sugRes.data as { category_id: string; source: string } | null
 
@@ -67,7 +76,10 @@ export default function VincularScreen() {
   const tx = data?.tx
   const categories = data?.categories ?? []
   const [catOverride, setCatOverride] = useState<string | null | undefined>(undefined)
+  const [docNaOverride, setDocNaOverride] = useState<boolean | undefined>(undefined)
+  const [concept, setConcept] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
   const [searchResults, setSearchResults] = useState<Sug[] | null>(null)
@@ -76,11 +88,38 @@ export default function VincularScreen() {
   const currentCat = catOverride === undefined ? (tx?.category_id ?? null) : catOverride
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
   const sugName = data?.suggestion ? catById.get(data.suggestion.id)?.name : null
+  const vConcept = concept ?? (tx?.concept ?? '')
+
+  async function saveMovement() {
+    setBusy(true)
+    setMsg(null)
+    setSaved(false)
+    const { error } = await insforge.database
+      .from('bank_transactions')
+      .update({ concept: vConcept.trim() || null, category_id: currentCat, document_na: currentDocNa })
+      .eq('id', id)
+    setBusy(false)
+    if (error) {
+      setMsg(error.message)
+      return
+    }
+    setSaved(true)
+  }
 
   async function setCategory(categoryId: string | null) {
     setMsg(null)
     setCatOverride(categoryId)
     const { error } = await insforge.database.from('bank_transactions').update({ category_id: categoryId }).eq('id', id)
+    if (error) setMsg(error.message)
+  }
+
+  const currentDocNa = docNaOverride === undefined ? (tx?.document_na ?? false) : docNaOverride
+
+  async function toggleDocNa() {
+    setMsg(null)
+    const next = !currentDocNa
+    setDocNaOverride(next)
+    const { error } = await insforge.database.from('bank_transactions').update({ document_na: next }).eq('id', id)
     if (error) setMsg(error.message)
   }
 
@@ -116,10 +155,11 @@ export default function VincularScreen() {
     if (!term) return
     setSearching(true)
     setMsg(null)
-    const [t, i, w] = await Promise.all([
+    const [t, i, w, p] = await Promise.all([
       insforge.database.from('mercadona_tickets').select('id, store_name, purchased_at, total').ilike('store_name', `%${term}%`).order('purchased_at', { ascending: false }).limit(10),
       insforge.database.from('iberdrola_invoices').select('id, invoice_number, issue_date, total').ilike('invoice_number', `%${term}%`).order('issue_date', { ascending: false }).limit(10),
       insforge.database.from('waylet_tickets').select('id, station_name, purchased_at, total').ilike('station_name', `%${term}%`).order('purchased_at', { ascending: false }).limit(10),
+      insforge.database.from('photo_tickets').select('id, store_name, purchased_at, total').ilike('store_name', `%${term}%`).order('purchased_at', { ascending: false }).limit(10),
     ])
     setSearching(false)
     const results: Sug[] = []
@@ -129,20 +169,22 @@ export default function VincularScreen() {
     for (const r of (i.data ?? []) as any[]) results.push({ type: 'invoice', id: String(r.id), label: `Factura ${r.invoice_number ?? ''}`, sub: dateOnly(r.issue_date), amount: r.total ?? null, linked: false })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const r of (w.data ?? []) as any[]) results.push({ type: 'waylet', id: String(r.id), label: String(r.station_name ?? 'Repostaje'), sub: dateOnly(r.purchased_at), amount: r.total ?? null, linked: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const r of (p.data ?? []) as any[]) results.push({ type: 'photo_ticket', id: String(r.id), label: String(r.store_name ?? 'Ticket foto'), sub: dateOnly(r.purchased_at), amount: r.total ?? null, linked: false })
     setSearchResults(results)
   }
 
-  const expenses = categories.filter((c) => c.kind === 'expense')
-  const incomes = categories.filter((c) => c.kind === 'income')
+  const rootsOf = (kind: 'expense' | 'income') => categories.filter((c) => !c.parent_id && c.kind === kind)
+  const childrenOf = (id: string) => categories.filter((c) => c.parent_id === id)
 
-  function CategoryPill({ c }: { c: BankCategory }) {
+  function CategoryPill({ c, sub = false }: { c: BankCategory; sub?: boolean }) {
     const active = currentCat === c.id
     return (
       <Pressable
         onPress={() => setCategory(c.id)}
         style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: active ? colors.emerald : '#eef2f6' }}
       >
-        <Text style={{ color: active ? '#fff' : colors.muted, fontSize: 13, fontWeight: '600' }}>{c.name}</Text>
+        <Text style={{ color: active ? '#fff' : colors.muted, fontSize: 13, fontWeight: '600' }}>{sub ? `↳ ${c.name}` : c.name}</Text>
       </Pressable>
     )
   }
@@ -161,6 +203,14 @@ export default function VincularScreen() {
               <Row label="Fecha" value={dateOnly(tx.operation_date)} />
               <Row label="Importe" value={eur(tx.amount)} strong />
               <Row label="Referencia" value={tx.reference ?? '—'} />
+            </Card>
+
+            <SectionTitle>Movimiento</SectionTitle>
+            <Card>
+              <Field label="Concepto" value={vConcept} onChangeText={setConcept} placeholder={tx.description ?? 'Concepto'} />
+              <View style={{ height: 12 }} />
+              <PrimaryButton title={busy ? 'Guardando…' : 'Guardar'} onPress={saveMovement} loading={busy} />
+              {saved ? <Text style={{ color: colors.emerald, fontSize: 13, marginTop: 6 }}>Guardado ✓</Text> : null}
             </Card>
 
             <SectionTitle>Categoría</SectionTitle>
@@ -185,27 +235,56 @@ export default function VincularScreen() {
                 </Pressable>
               </View>
 
-              {expenses.length > 0 ? (
+              {rootsOf('expense').length > 0 ? (
                 <>
                   <Text style={{ color: colors.faint, fontSize: 12, marginTop: 12 }}>GASTOS</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-                    {expenses.map((c) => <CategoryPill key={c.id} c={c} />)}
+                    {rootsOf('expense').map((root) => (
+                      <Fragment key={root.id}>
+                        <CategoryPill c={root} />
+                        {childrenOf(root.id).map((ch) => (
+                          <CategoryPill key={ch.id} c={ch} sub />
+                        ))}
+                      </Fragment>
+                    ))}
                   </View>
                 </>
               ) : null}
-              {incomes.length > 0 ? (
+              {rootsOf('income').length > 0 ? (
                 <>
                   <Text style={{ color: colors.faint, fontSize: 12, marginTop: 12 }}>INGRESOS</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-                    {incomes.map((c) => <CategoryPill key={c.id} c={c} />)}
+                    {rootsOf('income').map((root) => (
+                      <Fragment key={root.id}>
+                        <CategoryPill c={root} />
+                        {childrenOf(root.id).map((ch) => (
+                          <CategoryPill key={ch.id} c={ch} sub />
+                        ))}
+                      </Fragment>
+                    ))}
                   </View>
                 </>
               ) : null}
               {categories.length === 0 ? (
                 <Text style={{ color: colors.muted, fontSize: 13, marginTop: 8 }}>
-                  No hay categorías. Créalas en Categorías.
+                  No hay categorías. Crea la primera aquí abajo.
                 </Text>
               ) : null}
+
+              <View style={{ height: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9', marginTop: 12 }} />
+              <Text style={{ color: colors.faint, fontSize: 12, marginBottom: 6 }}>Añadir categoría o subcategoría</Text>
+              <CategoryCreator categories={categories} onCreated={reload} />
+            </Card>
+
+            <SectionTitle>Documento</SectionTitle>
+            <Card>
+              <Pressable onPress={toggleDocNa} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <Text style={{ color: colors.text, fontSize: 14 }}>Sin documento (no aplica)</Text>
+                <Badge text={currentDocNa ? 'Sí' : 'No'} tone={currentDocNa ? 'green' : 'slate'} />
+              </Pressable>
+              <Text style={{ color: colors.faint, fontSize: 12, marginTop: 6 }}>
+                Marca el movimiento como “no necesita ticket/factura” (nómina, comisiones…).
+              </Text>
             </Card>
 
             <SectionTitle>Vinculados ({data.linked.length})</SectionTitle>

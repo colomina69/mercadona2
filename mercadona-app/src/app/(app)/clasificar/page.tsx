@@ -13,7 +13,7 @@ export default async function ClasificarPage() {
       .limit(1000),
     insforge.database
       .from('bank_categories')
-      .select('id, name, kind, color, sort_order')
+      .select('id, name, kind, color, sort_order, parent_id')
       .order('kind')
       .order('sort_order'),
   ])

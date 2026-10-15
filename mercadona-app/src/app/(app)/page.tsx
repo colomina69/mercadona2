@@ -57,19 +57,37 @@ const SECTIONS: Section[] = [
 
 export default async function HomePage() {
   const insforge = createInsForgeServerClient()
-  const { data } = await insforge.database
-    .from('bank_account_balances')
-    .select('account_iban, account_name, balance, currency, as_of')
-    .order('as_of', { ascending: false })
-    .limit(1)
-  const snapshot = (data?.[0] ?? null) as { balance: number | null; as_of: string | null } | null
-  const sections = snapshot
+  const [balanceRes, pendingRes] = await Promise.all([
+    insforge.database
+      .from('bank_account_balances')
+      .select('account_iban, account_name, balance, currency, as_of')
+      .order('as_of', { ascending: false })
+      .limit(1),
+    insforge.database.rpc('bank_pending_count', {}),
+  ])
+  const snapshot = (balanceRes.data?.[0] ?? null) as { balance: number | null; as_of: string | null } | null
+  const pending = (pendingRes.data ?? { total: 0 }) as { total: number }
+
+  let sections = snapshot
     ? SECTIONS.map((s) =>
         s.href === '/movimientos'
           ? { ...s, description: `Saldo ${eur(snapshot.balance)} · ${dateOnly(snapshot.as_of)}` }
           : s,
       )
     : SECTIONS
+
+  if (pending.total > 0) {
+    sections = [
+      {
+        href: '/pendientes',
+        emoji: '⚠️',
+        title: 'Pendientes',
+        description: `${pending.total} movimientos por clasificar o vincular`,
+        accent: 'bg-red-50 text-red-700',
+      },
+      ...sections,
+    ]
+  }
 
   return (
     <div className="space-y-6">

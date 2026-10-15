@@ -62,6 +62,26 @@ export type BankTransaction = {
   reference: string | null
   category_id: string | null
   category?: { name: string; kind: 'expense' | 'income' } | null
+  document_na?: boolean
+}
+
+export type PendingMovement = {
+  id: string
+  operation_date: string | null
+  amount: number | null
+  description: string | null
+  concept: string | null
+  category_id: string | null
+  category_name: string | null
+  document_na: boolean
+  needs_category: boolean
+  needs_link: boolean
+}
+
+export type PendingCount = {
+  missing_category: number
+  missing_link: number
+  total: number
 }
 
 export type BankCategory = {
@@ -70,6 +90,7 @@ export type BankCategory = {
   kind: 'expense' | 'income'
   color: string | null
   sort_order: number
+  parent_id: string | null
 }
 
 export type BankSummary = {
@@ -327,4 +348,22 @@ export type PhotoTicketLine = {
   unit: string | null
   unit_price: number | null
   amount: number | null
+  category_id: string | null
+}
+
+export type PhotoTicketCategory = {
+  id: string
+  name: string
+  color: string | null
+  sort_order: number
+}
+
+export type PhotoTicketCandidate = {
+  id: string
+  ticket_number: string | null
+  purchased_at: string | null
+  store_name: string | null
+  total: number | null
+  date_diff: number
+  linked: boolean
 }

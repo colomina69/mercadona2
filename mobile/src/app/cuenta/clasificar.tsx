@@ -1,5 +1,5 @@
-import { Stack, router } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { Stack, router, useFocusEffect } from 'expo-router'
+import { useCallback, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Badge, Card, Empty, ErrorBox, Loading, Screen, SectionMenu } from '@/components/ui'
 import { YearFilter } from '@/components/YearFilter'
@@ -11,6 +11,7 @@ import { colors } from '@/lib/theme'
 
 const MENU = [
   { label: 'Movimientos', href: '/cuenta/movimientos' },
+  { label: 'Pendientes', href: '/cuenta/pendientes' },
   { label: 'Clasificar', href: '/cuenta/clasificar' },
   { label: 'Categorías', href: '/cuenta/categorias' },
 ]
@@ -25,18 +26,24 @@ type Move = {
 }
 
 export default function ClasificarScreen() {
-  const { data, error, loading } = useAsync(async () => {
+  const { data, error, loading, refresh } = useAsync(async () => {
     const [movsRes, catsRes] = await Promise.all([
       insforge.database
         .from('bank_transactions')
         .select('id, operation_date, description, concept, amount, category_id')
         .order('operation_date', { ascending: false })
         .limit(1000),
-      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
+      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order, parent_id').order('kind').order('sort_order'),
     ])
     if (movsRes.error) throw new Error(movsRes.error.message)
     return { movements: (movsRes.data ?? []) as Move[], categories: (catsRes.data ?? []) as BankCategory[] }
   })
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh()
+    }, [refresh]),
+  )
 
   const [year, setYear] = useState<number | null>(null)
   const [onlyUncat, setOnlyUncat] = useState(true)

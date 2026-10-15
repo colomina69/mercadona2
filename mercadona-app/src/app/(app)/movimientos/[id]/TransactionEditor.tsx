@@ -4,29 +4,32 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getInsforgeBrowser } from '@/lib/insforge/client'
 import type { BankCategory } from '@/lib/types'
+import { CategoryCreator, CategoryOptions } from '@/components/CategoryCreator'
 
 export function TransactionEditor({
   transactionId,
   description,
   concept,
   categoryId,
+  documentNa,
   categories: initialCategories,
 }: {
   transactionId: string
   description: string | null
   concept: string | null
   categoryId: string | null
+  documentNa: boolean
   categories: BankCategory[]
 }) {
   const router = useRouter()
   const [categories, setCategories] = useState(initialCategories)
   const [name, setName] = useState(concept ?? '')
   const [category, setCategory] = useState(categoryId ?? '')
-  const [newName, setNewName] = useState('')
-  const [newKind, setNewKind] = useState<'expense' | 'income'>('expense')
+  const [docNa, setDocNa] = useState(documentNa)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [suggestion, setSuggestion] = useState<{ id: string; source: string } | null>(null)
 
   useEffect(() => {
@@ -43,51 +46,39 @@ export function TransactionEditor({
     }
   }, [transactionId])
 
-  function refreshCategories() {
-    return getInsforgeBrowser()
-      .database.from('bank_categories')
-      .select('id, name, kind, color, sort_order')
-      .order('kind')
-      .order('sort_order')
-  }
-
-  async function createCategory() {
-    const n = newName.trim()
-    if (!n) return
-    setBusy(true)
-    setError(null)
-    const { data, error: err } = await getInsforgeBrowser()
-      .database.from('bank_categories')
-      .insert([{ name: n, kind: newKind }])
-      .select('id')
-      .single()
-    if (err) {
-      setError(err.message)
-      setBusy(false)
-      return
+  async function save(options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setBusy(true)
+      setError(null)
+      setSaved(false)
     }
-    setNewName('')
-    setCategory((data as { id: string } | null)?.id ?? '')
-    const { data: list } = await refreshCategories()
-    setCategories((list ?? []) as BankCategory[])
-    setBusy(false)
-  }
-
-  async function save() {
-    setBusy(true)
-    setError(null)
-    setSaved(false)
     const { error: err } = await getInsforgeBrowser()
       .database.from('bank_transactions')
-      .update({ concept: name.trim() || null, category_id: category || null })
+      .update({ concept: name.trim() || null, category_id: category || null, document_na: docNa })
       .eq('id', transactionId)
-    setBusy(false)
+    if (!options?.silent) setBusy(false)
     if (err) {
-      setError(err.message)
+      if (!options?.silent) setError(err.message)
       return
     }
     setSaved(true)
-    router.push('/movimientos')
+    setDirty(false)
+    if (!options?.silent) router.push('/movimientos')
+  }
+
+  // Al vincular/desvincular desde la propia ficha se guardan también los cambios del movimiento
+  useEffect(() => {
+    const handler = () => {
+      void save({ silent: true })
+    }
+    window.addEventListener('movement:save', handler)
+    return () => window.removeEventListener('movement:save', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, category, docNa])
+
+  function markDirty() {
+    setSaved(false)
+    setDirty(true)
   }
 
   const expenses = categories.filter((c) => c.kind === 'expense')
@@ -104,35 +95,50 @@ export function TransactionEditor({
           <input
             className={input}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value)
+              markDirty()
+            }}
             placeholder={description ?? 'Concepto'}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
-          <select className={input} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select
+            className={input}
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value)
+              markDirty()
+            }}
+          >
             <option value="">Sin categoría</option>
             {expenses.length > 0 && (
               <optgroup label="Gastos">
-                {expenses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                <CategoryOptions categories={categories} kind="expense" />
               </optgroup>
             )}
             {incomes.length > 0 && (
               <optgroup label="Ingresos">
-                {incomes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                <CategoryOptions categories={categories} kind="income" />
               </optgroup>
             )}
           </select>
         </div>
       </div>
+
+      <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          checked={docNa}
+          onChange={(e) => {
+            setDocNa(e.target.checked)
+            markDirty()
+          }}
+          className="h-4 w-4 rounded border-slate-300"
+        />
+        Sin documento (no aplica) — no hace falta ticket/factura (nómina, comisiones…)
+      </label>
 
       {(() => {
         const sugName = suggestion ? categories.find((c) => c.id === suggestion.id)?.name : null
@@ -147,7 +153,10 @@ export function TransactionEditor({
             </span>
             <button
               type="button"
-              onClick={() => setCategory(suggestion.id)}
+              onClick={() => {
+                setCategory(suggestion.id)
+                markDirty()
+              }}
               className="rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
             >
               Usar
@@ -156,42 +165,29 @@ export function TransactionEditor({
         )
       })()}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-3">
-        <span className="text-xs font-medium text-slate-500">Nueva categoría:</span>
-        <input
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-emerald-500"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="ej. Gasolina"
+      <div className="mt-3">
+        <p className="mb-1 text-xs font-medium text-slate-500">Nueva categoría o subcategoría</p>
+        <CategoryCreator
+          categories={categories}
+          onCreated={(c) => {
+            setCategories((cs) => [...cs, c])
+            setCategory(c.id)
+            markDirty()
+          }}
         />
-        <select
-          className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-          value={newKind}
-          onChange={(e) => setNewKind(e.target.value as 'expense' | 'income')}
-        >
-          <option value="expense">Gasto</option>
-          <option value="income">Ingreso</option>
-        </select>
-        <button
-          type="button"
-          onClick={createCategory}
-          disabled={busy || !newName.trim()}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-white disabled:opacity-50"
-        >
-          Crear
-        </button>
       </div>
 
       <div className="mt-4 flex items-center gap-3">
         <button
           type="button"
-          onClick={save}
+          onClick={() => save()}
           disabled={busy}
           className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
         {saved && <span className="text-xs text-emerald-600">Guardado ✓</span>}
+        {dirty && <span className="text-xs text-amber-600">• Cambios sin guardar</span>}
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
     </div>

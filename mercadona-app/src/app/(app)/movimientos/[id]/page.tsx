@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { BankCategory, BankLink, BankTransaction, IberdrolaInvoice, InvoiceCandidate, LinkedTicket, TicketCandidate, WayletCandidate, WayletTicket } from '@/lib/types'
+import type { BankCategory, BankLink, BankTransaction, IberdrolaInvoice, InvoiceCandidate, LinkedTicket, TicketCandidate, WayletCandidate, WayletTicket, PhotoTicketCandidate } from '@/lib/types'
 import { eur, dateOnly } from '@/lib/format'
 import { TransactionEditor } from './TransactionEditor'
 import { TicketLinker } from './TicketLinker'
 import { InvoiceLinker } from './InvoiceLinker'
 import { FuelLinker } from './FuelLinker'
+import { PhotoTicketLinker } from './PhotoTicketLinker'
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -22,19 +23,20 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
 
   const { data: txData } = await insforge.database
     .from('bank_transactions')
-    .select('*, category:bank_categories(id, name, kind, color, sort_order)')
+    .select('*, category:bank_categories(id, name, kind, color, sort_order, parent_id)')
     .eq('id', params.id)
     .maybeSingle()
 
   const tx = (txData ?? null) as BankTransaction | null
   if (!tx) notFound()
 
-  const [categoriesRes, linksRes, suggestionsRes, invoiceSuggestionsRes, fuelSuggestionsRes] = await Promise.all([
-    insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
+  const [categoriesRes, linksRes, suggestionsRes, invoiceSuggestionsRes, fuelSuggestionsRes, photoSuggestionsRes] = await Promise.all([
+    insforge.database.from('bank_categories').select('id, name, kind, color, sort_order, parent_id').order('kind').order('sort_order'),
     insforge.database.from('bank_transaction_links').select('id, transaction_id, target_type, target_id').eq('transaction_id', params.id),
     insforge.database.rpc('bank_match_tickets', { p_transaction_id: params.id }),
     insforge.database.rpc('bank_match_invoices', { p_transaction_id: params.id }),
     insforge.database.rpc('bank_match_waylet', { p_transaction_id: params.id }),
+    insforge.database.rpc('bank_match_photo_tickets', { p_transaction_id: params.id }),
   ])
 
   const categories = (categoriesRes.data ?? []) as BankCategory[]
@@ -42,6 +44,7 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
   const suggestions = (suggestionsRes.data ?? []) as TicketCandidate[]
   const invoiceSuggestions = (invoiceSuggestionsRes.data ?? []) as InvoiceCandidate[]
   const fuelSuggestions = (fuelSuggestionsRes.data ?? []) as WayletCandidate[]
+  const photoSuggestions = (photoSuggestionsRes.data ?? []) as PhotoTicketCandidate[]
 
   const ticketIds = links.filter((l) => l.target_type === 'ticket').map((l) => l.target_id)
   let linkedTickets: LinkedTicket[] = []
@@ -76,6 +79,17 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
   }
   const linkedByWayletId = Object.fromEntries(links.filter((l) => l.target_type === 'waylet').map((l) => [l.target_id, l.id]))
 
+  const photoTicketIds = links.filter((l) => l.target_type === 'photo_ticket').map((l) => l.target_id)
+  let linkedPhotoTickets: { id: string; store_name: string | null; ticket_number: string | null; purchased_at: string | null; total: number | null }[] = []
+  if (photoTicketIds.length > 0) {
+    const { data } = await insforge.database
+      .from('photo_tickets')
+      .select('id, store_name, ticket_number, purchased_at, total')
+      .in('id', photoTicketIds)
+    linkedPhotoTickets = (data ?? []) as typeof linkedPhotoTickets
+  }
+  const linkedByPhotoTicketId = Object.fromEntries(links.filter((l) => l.target_type === 'photo_ticket').map((l) => [l.target_id, l.id]))
+
   const label = tx.concept ?? tx.description ?? 'Movimiento'
 
   return (
@@ -104,6 +118,7 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
         description={tx.description}
         concept={tx.concept}
         categoryId={tx.category_id}
+        documentNa={tx.document_na ?? false}
         categories={categories}
       />
 
@@ -144,6 +159,14 @@ export default async function MovimientoDetailPage({ params }: { params: { id: s
         suggestions={fuelSuggestions}
         linkedTickets={linkedFuel}
         linkedById={linkedByWayletId}
+      />
+
+      <PhotoTicketLinker
+        transactionId={tx.id}
+        amount={tx.amount}
+        suggestions={photoSuggestions}
+        linkedTickets={linkedPhotoTickets}
+        linkedByTicketId={linkedByPhotoTicketId}
       />
     </div>
   )

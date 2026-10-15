@@ -47,6 +47,7 @@ const SECTIONS: Section[] = [
     label: 'Cuenta',
     links: [
       { href: '/movimientos', label: 'Movimientos' },
+      { href: '/pendientes', label: 'Pendientes' },
       { href: '/clasificar', label: 'Clasificar' },
       { href: '/categorias', label: 'Categorías' },
     ],

@@ -19,6 +19,7 @@
 | Owner uid (RLS) | `dfaf6414-958a-4768-9d92-a57493181524` |
 | n8n | `https://n8n.benicolo.com` · MCP `.../mcp-server/http` (token en `opencode.json`) |
 | Credenciales n8n | `InsForge` (httpHeaderAuth), `Gmail account` (gmailOAuth2) y `Enable Banking RSA` (crypto, app id `4211076d-…`) |
+| Modelo IA (OpenRouter) | `deepseek/deepseek-v4.1-flash` (visión); API key **incrustada** en `n8n/ticket-photo.js` (cabecera `Authorization` del nodo `AI Extract`) |
 | Vercel | proyecto `insforge` (`prj_20w2s24Z0CefOQSsc0a4J9xCfvon`) · team `team_m0rOwtLX4SM9C2Sw1gUwl8HT` |
 | Alias de producción | `https://insforge-mu.vercel.app` |
 | Dokploy (backend) | `https://dokploy.benicolo.com` · compose `insforge` (`MSEEh5zwTE_ov2dIjKjM0`) |
@@ -471,6 +472,142 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Verificación**: web `tsc` + `next build` OK (`/fotos`); móvil `tsc` + `expo export` OK.
 - **Commit**: (pendiente)
 
+### Sesión Y — Tickets por foto con agente de IA (visión)
+- **Objetivo**: al fotografiar un ticket, que un **agente de IA** extraiga los datos (cabecera +
+  líneas) en lugar del parseo por regex genérica (que "no cogía bien los datos").
+- **Backend**: migración `20261014120000_photo-ticket-create-lines`:
+  `photo_ticket_create(jsonb)` → `photo_ticket_create(p_ticket jsonb, p_lines jsonb DEFAULT '[]')`
+  que inserta cabecera **+ líneas** (antes solo las insertaba `photo_ticket_update`).
+- **n8n** (`n8n/ticket-photo.js`, id `LP8wMw6VkQgsnqYX`) — nuevo flujo:
+  `Webhook → Check Token → Build & Encode → Upload Image → AI Extract → Parse AI → DB Create → Respond OK`.
+  - `Build & Encode`: lee el binario (`data0`), arma `key`, `captured_at`, `raw_text` y una **data URL
+    base64** de la imagen (`this.helpers.getBinaryDataBuffer` + `toString('base64')`).
+  - `AI Extract`: HTTP a OpenRouter `https://openrouter.ai/api/v1/chat/completions`, modelo
+    **`deepseek/deepseek-v4.1-flash`** (multimodal text+image), `temperature: 0`, `max_tokens: 4000`;
+    `system` con el esquema JSON y `user` con `text` + `image_url` (data URL). Auth por credencial
+    **`OpenRouter`** (Header Auth).
+  - `Parse AI`: `JSON.parse` defensivo (quita fences), decimales con coma → punto y fecha `YYYY-MM-DD`;
+    rellena `p_ticket` + `p_lines`.
+- **Decisión**: la imagen se envía **inline** (base64) porque los buckets son privados (no hay URL
+  pública); se usa la **visión** del modelo y la app **deja de hacer OCR**.
+- **App**: se elimina el OCR (web `tesseract.js`, móvil `expo-text-extractor`); la app solo sube la
+  imagen. El móvil vuelve a funcionar en **Expo Go** (sin módulo nativo). El detalle sigue mostrando
+  "Texto OCR": ahora contiene la transcripción que devuelve el modelo.
+- **Problemas y solución**:
+  - El **Model Gateway de InsForge no tiene key de OpenRouter** configurada (`ai setup` falla); se
+    incrustó una **API key propia de OpenRouter** en el workflow (cabecera `Authorization` del nodo
+    `AI Extract`), igual que ya se hace con la del InsForge. Así se evita la credencial (el MCP de n8n
+    no asigna credenciales).
+- **Verificación**: workflow `validate` OK y **publicado**; **prueba end-to-end** (POST al webhook con
+  una imagen de ticket) → la IA extrajo tienda, nº ticket, fecha, subtotal, total **y las 5 líneas**
+  correctamente; la imagen quedó en `receipts`. Web `tsc` + `next build` OK (`/fotos`); móvil `tsc` +
+  `expo export` OK. Datos de prueba eliminados.
+- **Commit**: (pendiente)
+
+### Sesión Z — Visor de "foto original" (tickets por foto)
+- **Objetivo**: arreglar el botón **"Ver foto original"** de los tickets por foto.
+- **Problema**: usaba `PdfButton`, que abre el visor **PDF.js** (`/pdf`); las fotos son **JPG/PNG**,
+  así que no se renderizaban.
+- **Cambios**:
+  - **Móvil**: nuevo visor `mobile/src/app/foto.tsx` (descarga con `Authorization` vía
+    `expo-file-system/legacy` y muestra la imagen con `resizeMode="contain"`) + componente
+    `mobile/src/components/ImageButton.tsx` (ver + compartir/guardar). `fotos/[id].tsx` usa `ImageButton`.
+  - **Web**: component `mercadona-app/src/components/ImageButton.tsx` (descarga el blob y lo muestra en
+    un **overlay/modal** a pantalla completa, sin `window.open`). `fotos/[id]/page.tsx` usa `ImageButton`.
+- **Verificación**: web `tsc` + `next build` OK; móvil `tsc` + `expo export` OK.
+- **APK**: regenerado (`mobile/mis-gastos.apk`, ~86 MB) con el fix del visor (build en `C:\mg`).
+- **Commit**: (pendiente)
+
+### Sesión AA — Tickets por foto: categoría por línea y vínculo con movimientos
+- **Objetivo**: (1) poder asignar una **categoría** a cada **línea de producto** del ticket (catálogo
+  propio) y (2) **vincular** los tickets por foto con los **movimientos bancarios**.
+- **Backend**: migración `20261014130000_photo-ticket-links-and-line-categories`:
+  - Nueva tabla **`photo_ticket_categories`** (catálogo propio, RLS owner) con 11 categorías semilla.
+  - `photo_ticket_lines.category_id → photo_ticket_categories(id)` (+ índice).
+  - `bank_transaction_links.target_type` amplía a **`photo_ticket`**; `bank_links_validate_target`
+    valida contra `photo_tickets`.
+  - RPC **`bank_match_photo_tickets(p_transaction_id, p_days default 5, p_tolerance default 0.02)`**.
+  - `photo_ticket_create`/`photo_ticket_update` persisten `category_id` por línea.
+- **Web**: `TicketPhotoEditor` con `<select>` de categoría por línea + alta rápida (＋, `prompt`);
+  `fotos/[id]` carga las categorías. Nuevo `PhotoTicketLinker` en `/movimientos/[id]`
+  (vinculados + sugerencias ±5 días + buscar).
+- **Móvil**: `fotos/[id].tsx` con selector de categoría por línea (**modal** + alta de categoría);
+  `/cuenta/vincular/[id]` incluye sugerencias, vinculados y búsqueda de **tickets por foto**.
+- **Decisión**: el catálogo de categorías de producto es **independiente** de `bank_categories`
+  (a petición del usuario); la vinculación se hace desde la **ficha del movimiento**.
+- **Verificación**: web `tsc` + `next build` OK; móvil `tsc` + `expo export` OK. RPC probada: la línea
+  guarda su `category_id` ("Alimentación").
+- **Commit**: (pendiente)
+
+### Sesión AB — Regla de completitud de movimientos (pendientes + "no aplica")
+- **Objetivo**: cada movimiento bancario debe tener **categoría** y **vínculo** (ticket/factura/
+  repostaje/proveedor/ticket por foto). Avisar/listar los que faltan y permitir marcar
+  **"sin documento (no aplica)"**.
+- **Backend**: migración `20261014140000_bank-pending-movements`:
+  - `bank_transactions.document_na boolean NOT NULL DEFAULT false` (editable; `GRANT UPDATE`).
+  - RPC `bank_pending_count(p_from, p_to)` → `{total, missing_category, missing_link}`.
+  - RPC `bank_pending_movements(p_from, p_to, p_limit, p_offset)` → lista con `needs_category`/`needs_link`.
+- **Web**: nueva ruta **`/pendientes`** (recuentos + lista con etiquetas "Falta categoría"/"Falta
+  documento", enlaza a `/movimientos/[id]`); `SectionNav` (grupo Cuenta) + tarjeta **Pendientes** en la
+  portada si hay pendientes; casilla "Sin documento (no aplica)" en `TransactionEditor`.
+- **Móvil**: nueva pantalla **`/cuenta/pendientes`** (`Stat` total/sin categoría/sin documento + lista →
+  `/cuenta/vincular/[id]`); añadida al `SectionMenu` de Cuenta y botón en la portada; toggle
+  "Sin documento (no aplica)" en `/cuenta/vincular/[id]`.
+- **Decisión**: **no se bloquea**; se avisa y se permite marcar "no aplica" para movimientos sin
+  documento posible (nómina, comisiones…). "Vínculo" = cualquier `target_type` de `bank_transaction_links`.
+- **Verificación**: `bank_pending_count()` → 429 pendientes (429 sin categoría, 427 sin documento).
+  Web `tsc` + `next build` + `next lint` OK; móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión AC — Subcategorías de categorías + alta al clasificar
+- **Objetivo**: jerarquía **categoría → subcategoría** en `bank_categories`, gestionable en el apartado
+  de Categorías, y poder **crear categorías y subcategorías mientras se clasifica** un movimiento.
+- **Backend**: migración `20261014150000_bank-subcategories`:
+  - `bank_categories.parent_id` (FK self, `ON DELETE CASCADE`) + índice.
+  - Unicidad por `(parent_id, lower(name))`; se elimina la unicidad global de nombre.
+  - Trigger `bank_categories_validate_parent`: máx. **2 niveles**, sin auto-referencia, una categoría con
+    hijos no puede convertirse en hija; la **subcategoría hereda el `kind`** del padre.
+- **Web**:
+  - `CategoryCreator` (nombre + tipo + padre) y `CategoryOptions` (select con subcategorías indentadas).
+  - `CategoryManager` (`/categorias`): árbol Gastos/Ingresos con subcategorías, "+ Subcategoría",
+    renombrar/borrar; alta con el creator.
+  - `Classifier` (`/clasificar`): creator inline + select agrupado (estado local de categorías).
+  - `TransactionEditor`: select agrupado + creator (crea y asigna).
+- **Móvil**:
+  - `CategoryCreator` móvil (nombre + tipo + "Depende de" con chips de categorías raíz).
+  - `/cuenta/categorias`: árbol con subcategorías (`↳`) + creator + borrar.
+  - `/cuenta/vincular/[id]`: pills con subcategorías indentadas + sección "Añadir categoría o subcategoría".
+- **Decisión**: solo **2 niveles** (categoría > subcategoría); las subcategorías heredan el tipo del padre.
+  Todos los `select` de `bank_categories` incluyen ya `parent_id`.
+- **Verificación**: trigger probado (sub insertada hereda `kind='expense'`); web `tsc` + `next build` +
+  `next lint` OK; móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión AD — Guardar el movimiento al clasificar/vincular (móvil)
+- **Objetivo**: en la pantalla móvil **"Vincular y clasificar"** faltaba poder **guardar el movimiento
+  con los cambios**.
+- **Cambios**:
+  - `mobile/src/app/cuenta/vincular/[id].tsx`: nueva sección **Movimiento** con **Concepto** editable y
+    botón **Guardar** (persiste `concept`, `category_id`, `document_na`) con confirmación "Guardado ✓".
+    Los vínculos y las pills de categoría siguen guardándose al instante.
+  - `mobile/src/lib/useAsync.ts`: nuevo `refresh()` **silencioso** (sin `loading`).
+  - Listas de Cuenta (`/cuenta/pendientes`, `/cuenta/clasificar`, `/cuenta/movimientos`) se refrescan
+    **al recibir foco** (`useFocusEffect`) para reflejar los cambios al volver.
+- **Verificación**: móvil `tsc` + `expo export` OK.
+- **Commit**: (pendiente)
+
+### Sesión AE — Guardado explícito en la ficha del movimiento (web)
+- **Objetivo**: en `/movimientos/[id]`, al **clasificar** (concepto/categoría/documento) y **vincular** no
+  quedaba claro que se guardara: el Guardar navegaba fuera y al vincular podía perderse lo editado.
+- **Cambios**:
+  - `TransactionEditor`: el **Guardar** guarda y **vuelve a `/movimientos`**, e indica
+    **"• Cambios sin guardar"** mientras haya ediciones pendientes.
+  - Los **linkers** (tickets, facturas, combustible, tickets por foto) emiten el evento
+    `movement:save` antes de refrescar; la ficha lo escucha y **persiste los cambios del movimiento**
+    al vincular/desvincular (los links se siguen guardando al instante).
+- **Verificación**: web `tsc` + `next lint` + `next build` OK.
+- **Commit**: (pendiente)
+
 ---
 
 ## 4. Base de datos (InsForge / Postgres)
@@ -478,8 +615,9 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 ### Tablas
 - **Mercadona**: `mercadona_tickets`, `mercadona_ticket_items`, `mercadona_products`,
   `mercadona_product_aliases`, `mercadona_lines`.
-- **Banca**: `bank_transactions` (con `concept`, `category_id`, `dedup_hash` unique, y
-  `source`, `account_iban`, `account_name`, `external_id`), `bank_categories`,
+- **Banca**: `bank_transactions` (con `concept`, `category_id`, `document_na`, `dedup_hash` unique, y
+  `source`, `account_iban`, `account_name`, `external_id`), `bank_categories` (con `parent_id` para
+  subcategorías, 2 niveles),
   `bank_transaction_links`, `bank_account_balances` (instantánea diaria de saldo).
 - **Iberdrola**: `iberdrola_contracts`, `iberdrola_invoices`, `iberdrola_invoice_lines`,
   `iberdrola_invoice_consumption`.
@@ -490,7 +628,8 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `supplier_invoice_lines`.
 - **Tickets por foto**: `photo_tickets` (`captured_at`, `purchased_at`, `store_name`,
   `ticket_number`, `total`, `subtotal`, `status` ∈ {pendiente, revisado}, `raw_text`, `image_key`,
-  `image_url`, `notes`), `photo_ticket_lines`.
+  `image_url`, `notes`), `photo_ticket_lines` (con `category_id → photo_ticket_categories`),
+  `photo_ticket_categories` (catálogo propio de categorías de producto, RLS owner).
 - **Sorteos**: `sorteos` (`nombre`, `fecha`, `precio`, `tipo` ∈ {mensual, especial},
   `decimos_totales`), `abonados` (`nombre`, `grupos text[]` ⊆ {mensual, extraordinario}, `activo`),
   `pagos` (`abonado_id` → `abonados(id)` ON DELETE CASCADE, `sorteo_id` → `sorteos`, `estado` ∈
@@ -503,15 +642,17 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - Mercadona: `mercadona_upsert_ticket`, `mercadona_ticket_message_ids`,
   `mercadona_spend_summary` (con `p_from`/`p_to`), `mercadona_products`, `mercadona_product_history`.
 - Banca: `bank_upsert_transactions`, `bank_upsert_account_balances`, `bank_summary`,
-  `bank_match_tickets`, `bank_match_invoices`, `bank_suggest_category` (sugerencia de categoría por
-  historial/comercio), `bank_links_validate_target` (trigger).
+  `bank_match_tickets`, `bank_match_invoices`,   `bank_suggest_category` (sugerencia de categoría por
+  historial/comercio), `bank_links_validate_target` (trigger), `bank_pending_count` y
+  `bank_pending_movements` (regla de completitud: categoría + vínculo).
 - Iberdrola: `iberdrola_upsert_invoice`, `iberdrola_invoice_message_ids`,
   `iberdrola_summary`, `iberdrola_price_history`.
 - Waylet: `waylet_upsert_ticket`, `waylet_ticket_message_ids`, `waylet_summary`,
   `bank_match_waylet`.
 - Proveedores: `supplier_invoice_upsert`, `supplier_invoice_message_ids`, `supplier_summary`,
   `bank_match_supplier`.
-- Tickets por foto: `photo_ticket_create`, `photo_ticket_update`.
+- Tickets por foto: `photo_ticket_create` (acepta `p_ticket` + `p_lines` con `category_id`),
+  `photo_ticket_update`. Banca: `bank_match_photo_tickets` (vincular movimiento ↔ ticket por foto).
 
 ### Buckets (todos privados)
 `mercadona`, `bank-statements`, `iberdrola`, `waylet`, `suppliers`, `receipts`.
@@ -529,7 +670,9 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola`, `wayle
 `20261007160000_bank-suggest-category`, `20261007160001_bank-suggest-category-keywords`,
 `20261007170000_supplier-invoices`, `20261007170001_storage-suppliers-select`,
 `20261007180000_supplier-responsibility-doc`, `20261008100000_photo-tickets`,
-`20261008100100_storage-receipts-select`.
+`20261008100100_storage-receipts-select`, `20261014120000_photo-ticket-create-lines`,
+`20261014130000_photo-ticket-links-and-line-categories`, `20261014140000_bank-pending-movements`,
+`20261014150000_bank-subcategories`.
 
 ---
 
@@ -549,7 +692,7 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola`, `wayle
 | `n8n/supplier-invoices.js` | Gmail | Facturas de proveedor (Albero) → PDF → RPC → bucket `suppliers` (id `HCpCCq9WSWQNqmCT`) |
 | `n8n/supplier-backfill.js` | Manual | Lee facturas antiguas de Albero (dedup por `message_id`) → RPC → bucket (id `JlVeaSE06Kn34oiu`) |
 | `n8n/albero-parser.js` | (módulo) | Parser Transportes Albero |
-| `n8n/ticket-photo.js` | Webhook + token | Foto de ticket → bucket `receipts` → `photo_ticket_create` (id `LP8wMw6VkQgsnqYX`) |
+| `n8n/ticket-photo.js` | Webhook + token | Foto de ticket → bucket `receipts` → **agente IA (visión, OpenRouter `deepseek/deepseek-v4.1-flash`)** extrae cabecera + líneas → `photo_ticket_create` (id `LP8wMw6VkQgsnqYX`) |
 | (proyecto `enable_bank`) Enable Banking — Cuenta Corriente | Manual / Webhook / Schedule | Cuenta Sabadell (AIS) → `bank_upsert_transactions` |
 
 Generación/publicación desde CLI: `scripts/n8n-build.js` (necesita `N8N_MCP_TOKEN`)
@@ -568,7 +711,7 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
    nunca funciones (Server → Client).
 6. **Parser Iberdrola**: líneas derivadas de las **fórmulas**, total de cabecera autoritativo.
 7. **Modelo específico de Iberdrola** (`iberdrola_*`) a petición; vínculos genéricos por
-   `bank_transaction_links.target_type ∈ {ticket, invoice, waylet}`.
+   `bank_transaction_links.target_type ∈ {ticket, invoice, waylet, supplier, photo_ticket}`.
 8. **App móvil sin login con la API key admin**: evita la RLS de propietario de las tablas
    financieras; es personal y no se publica. La clave solo vive en `mobile/.env` (gitignored).
 9. **Sorteos** como gestión (admin) sobre `sorteos`/`pagos`; sin pasarela de pago (se marca
@@ -601,6 +744,7 @@ y `scripts/n8n-iberdrola-build.js` (genera los workflows de Iberdrola incrustand
 | `createSignedUrl` con la API key admin da un strategy `direct` que exige cabecera `Authorization` (la URL no abre en el navegador) | Descargar con auth (`File.downloadFileAsync` / `expo-file-system`) y abrir en local |
 | El `WebView` de Android no renderiza PDF nativo | Visor propio `/pdf` con **PDF.js** empaquetado como asset + inline (API `eval`, worker blob) en `react-native-webview` |
 | El visor se quedaba en “Cargando PDF…” (el `<script src>` del CDN de PDF.js no cargaba en el WebView) | Empaquetar `pdf.min.js`/`pdf.worker.min.js` como assets (ext. `pdfjs` en `metro.config.js`) y leerlos en base64 para inyectarlos inline |
+| “Ver foto original” de un ticket (JPG/PNG) usaba el visor PDF.js y no se veía | Visor de imagen dedicado (`/foto` móvil + overlay web) y componente `ImageButton` en vez de `PdfButton` |
 
 ---
 

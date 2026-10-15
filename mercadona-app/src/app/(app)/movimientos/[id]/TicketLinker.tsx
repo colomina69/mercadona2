@@ -41,6 +41,7 @@ export function TicketLinker({
       setError(err.message)
       return
     }
+    window.dispatchEvent(new Event('movement:save'))
     router.refresh()
   }
 
@@ -53,6 +54,7 @@ export function TicketLinker({
       setError(err.message)
       return
     }
+    window.dispatchEvent(new Event('movement:save'))
     router.refresh()
   }
 

@@ -1,5 +1,5 @@
-import { Link, Stack } from 'expo-router'
-import { useState } from 'react'
+import { Link, Stack, useFocusEffect } from 'expo-router'
+import { useCallback, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { RankBars } from '@/components/charts'
 import { Badge, Card, Empty, ErrorBox, Loading, Row, Screen, SectionMenu, SectionTitle, Stat } from '@/components/ui'
@@ -13,6 +13,7 @@ import { colors } from '@/lib/theme'
 
 const MENU = [
   { label: 'Movimientos', href: '/cuenta/movimientos' },
+  { label: 'Pendientes', href: '/cuenta/pendientes' },
   { label: 'Clasificar', href: '/cuenta/clasificar' },
   { label: 'Categorías', href: '/cuenta/categorias' },
 ]
@@ -31,7 +32,7 @@ export default function MovimientosScreen() {
     return yearsFromMonthly((data as BankSummary | null)?.monthly)
   }, [])
 
-  const { data, error, loading } = useAsync(async () => {
+  const { data, error, loading, refresh } = useAsync(async () => {
     const [summaryRes, balancesRes] = await Promise.all([
       insforge.database.rpc('bank_summary', range),
       insforge.database
@@ -57,6 +58,12 @@ export default function MovimientosScreen() {
       transactions: (listRes.data ?? []) as unknown as TxRow[],
     }
   }, [year])
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh()
+    }, [refresh]),
+  )
 
   return (
     <>

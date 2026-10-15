@@ -2,7 +2,6 @@ import { Link, Stack, router } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import Constants from 'expo-constants'
 import { File } from 'expo-file-system'
 import { Badge, Card, Empty, ErrorBox, Loading, Screen } from '@/components/ui'
 import { dateOnly, eur } from '@/lib/format'
@@ -13,9 +12,6 @@ import { colors } from '@/lib/theme'
 
 const WEBHOOK_URL = process.env.EXPO_PUBLIC_N8N_PHOTO_WEBHOOK_URL
 const WEBHOOK_TOKEN = process.env.EXPO_PUBLIC_N8N_PHOTO_WEBHOOK_TOKEN
-
-// El OCR nativo (expo-text-extractor) NO existe en Expo Go; cargarlo ahí cierra la app.
-const CAN_OCR = Constants.appOwnership !== 'expo'
 
 export default function FotosScreen() {
   const { data, error, loading, reload } = useAsync(async () => {
@@ -37,24 +33,11 @@ export default function FotosScreen() {
       return
     }
     setBusy(true)
-    let rawText = ''
-    if (CAN_OCR) {
-      setMsg('Reconociendo texto (OCR)…')
-      try {
-        // Import dinámico: el módulo nativo solo existe en dev build/APK.
-        const mod = await import('expo-text-extractor')
-        const lines = await mod.extractTextFromImage(uri)
-        rawText = Array.isArray(lines) ? lines.join('\n') : String(lines)
-      } catch {
-        rawText = ''
-      }
-    }
-    setMsg('Subiendo…')
+    setMsg('Analizando el ticket con IA…')
     try {
       const form = new FormData()
       const file = new File(uri)
       form.append('data', file as unknown as Blob, fileName || 'ticket.jpg')
-      form.append('raw_text', rawText)
       form.append('captured_at', new Date().toISOString())
       const resp = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'x-webhook-token': WEBHOOK_TOKEN }, body: form })
       const json = (await resp.json()) as { ok?: boolean; id?: string; error?: string }
@@ -102,7 +85,7 @@ export default function FotosScreen() {
       <Screen>
         <Card>
           <Text style={{ color: colors.muted, fontSize: 13 }}>
-            Fotografía el ticket; se reconoce el texto (OCR) y podrás revisar y completar los datos.
+            Fotografía el ticket; un agente de IA extrae los datos y podrás revisarlos y completarlos.
           </Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <Pressable

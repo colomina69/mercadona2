@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createInsForgeServerClient } from '@/lib/insforge/server'
-import type { PhotoTicket, PhotoTicketLine } from '@/lib/types'
-import { PdfButton } from '@/components/PdfButton'
+import type { PhotoTicket, PhotoTicketCategory, PhotoTicketLine } from '@/lib/types'
+import { ImageButton } from '@/components/ImageButton'
 import { TicketPhotoEditor } from '@/components/TicketPhotoEditor'
 
 export default async function FotoDetailPage({ params }: { params: { id: string } }) {
@@ -12,12 +12,12 @@ export default async function FotoDetailPage({ params }: { params: { id: string 
   const ticket = (tData ?? null) as PhotoTicket | null
   if (!ticket) notFound()
 
-  const { data: lData } = await insforge.database
-    .from('photo_ticket_lines')
-    .select('*')
-    .eq('ticket_id', params.id)
-    .order('line_no')
-  const lines = (lData ?? []) as PhotoTicketLine[]
+  const [linesRes, catsRes] = await Promise.all([
+    insforge.database.from('photo_ticket_lines').select('*').eq('ticket_id', params.id).order('line_no'),
+    insforge.database.from('photo_ticket_categories').select('id, name, color, sort_order').order('sort_order').order('name'),
+  ])
+  const lines = (linesRes.data ?? []) as PhotoTicketLine[]
+  const categories = (catsRes.data ?? []) as PhotoTicketCategory[]
 
   return (
     <div className="space-y-4">
@@ -27,9 +27,9 @@ export default async function FotoDetailPage({ params }: { params: { id: string 
 
       <h1 className="text-xl font-semibold">{ticket.store_name ?? 'Ticket'}</h1>
 
-      {ticket.image_key ? <PdfButton pdfKey={ticket.image_key} bucket="receipts" label="Ver foto original" /> : null}
+      {ticket.image_key ? <ImageButton imageKey={ticket.image_key} bucket="receipts" label="Ver foto original" /> : null}
 
-      <TicketPhotoEditor ticket={ticket} lines={lines} />
+      <TicketPhotoEditor ticket={ticket} lines={lines} categories={categories} />
 
       {ticket.raw_text ? (
         <details className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

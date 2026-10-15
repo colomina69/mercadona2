@@ -45,7 +45,7 @@ export default async function MovimientosPage({
 
   const [summaryRes, categoriesRes, listRes, balancesRes, yearsRes] = await Promise.all([
     insforge.database.rpc('bank_summary', { p_from: from || null, p_to: to || null }),
-    insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
+    insforge.database.from('bank_categories').select('id, name, kind, color, sort_order, parent_id').order('kind').order('sort_order'),
     (() => {
       let query: any = insforge.database.from('bank_transactions').select(COLS, { count: 'exact' })
       if (q) query = query.or(`description.ilike.%${q}%,concept.ilike.%${q}%,reference.ilike.%${q}%`)

@@ -35,6 +35,7 @@ export function FuelLinker({
       setError(err.message)
       return
     }
+    window.dispatchEvent(new Event('movement:save'))
     router.refresh()
   }
 
@@ -47,6 +48,7 @@ export function FuelLinker({
       setError(err.message)
       return
     }
+    window.dispatchEvent(new Event('movement:save'))
     router.refresh()
   }
 

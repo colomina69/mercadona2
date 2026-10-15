@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { getInsforgeBrowser } from '@/lib/insforge/client'
 import type { BankCategory } from '@/lib/types'
 import { dateOnly, eur } from '@/lib/format'
+import { CategoryCreator, CategoryOptions } from '@/components/CategoryCreator'
 
 export type ClassifierMovement = {
   id: string
@@ -35,6 +36,7 @@ export function Classifier({
 }) {
   const db = getInsforgeBrowser().database
   const [rows, setRows] = useState(movements)
+  const [cats, setCats] = useState(categories)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -46,7 +48,7 @@ export function Classifier({
   const [details, setDetails] = useState<Record<string, { linked: LinkedItem[]; sugs: Sug[] }>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
 
-  const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
+  const catById = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats])
   const years = useMemo(() => {
     const set = new Set<string>()
     for (const r of rows) if (r.operation_date) set.add(String(r.operation_date).slice(0, 4))
@@ -66,8 +68,8 @@ export function Classifier({
     })
   }, [rows, onlyUncategorized, year, q])
 
-  const expenses = categories.filter((c) => c.kind === 'expense')
-  const incomes = categories.filter((c) => c.kind === 'income')
+  const expenses = cats.filter((c) => c.kind === 'expense')
+  const incomes = cats.filter((c) => c.kind === 'income')
 
   function CategorySelect({
     value,
@@ -88,20 +90,12 @@ export function Classifier({
         <option value="">Sin categoría</option>
         {expenses.length > 0 && (
           <optgroup label="Gastos">
-            {expenses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            <CategoryOptions categories={cats} kind="expense" />
           </optgroup>
         )}
         {incomes.length > 0 && (
           <optgroup label="Ingresos">
-            {incomes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            <CategoryOptions categories={cats} kind="income" />
           </optgroup>
         )}
       </select>
@@ -246,6 +240,8 @@ export function Classifier({
             {filtered.length} movimientos
           </span>
         </div>
+
+        <CategoryCreator categories={cats} onCreated={(c) => setCats((cs) => [...cs, c])} />
 
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2">

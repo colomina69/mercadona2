@@ -27,7 +27,7 @@ export default function MovimientoDetailScreen() {
   const { data, error, loading, reload } = useAsync(async () => {
     const [tx, cats, linksRes, ticketsRes, invoicesRes, wayletRes] = await Promise.all([
       insforge.database.from('bank_transactions').select('*').eq('id', id).maybeSingle(),
-      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order').order('kind').order('sort_order'),
+      insforge.database.from('bank_categories').select('id, name, kind, color, sort_order, parent_id').order('kind').order('sort_order'),
       insforge.database.from('bank_transaction_links').select('id, target_type, target_id').eq('transaction_id', id),
       insforge.database.rpc('bank_match_tickets', { p_transaction_id: id }),
       insforge.database.rpc('bank_match_invoices', { p_transaction_id: id }),

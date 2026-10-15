@@ -14,18 +14,10 @@ export function TicketPhotoUploader() {
   async function onFile(file: File) {
     setBusy(true)
     setError(null)
-    setStatus('Reconociendo texto (OCR)…')
+    setStatus('Analizando el ticket con IA…')
     try {
-      const Tesseract = (await import('tesseract.js')).default
-      const worker = await Tesseract.createWorker('spa')
-      const { data } = await worker.recognize(file)
-      await worker.terminate()
-      const rawText = data.text || ''
-
-      setStatus('Subiendo…')
       const fd = new FormData()
       fd.append('file', file, file.name || 'ticket.jpg')
-      fd.append('raw_text', rawText)
       const res = await uploadTicketPhotoAction(fd)
       if (!res.ok || !res.id) {
         setError(res.error ?? 'No se pudo guardar la foto')
@@ -44,7 +36,7 @@ export function TicketPhotoUploader() {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-sm text-slate-500">
-        Haz una foto al ticket; se reconoce el texto (OCR) y podrás revisar y completar los datos.
+        Haz una foto al ticket; un agente de IA extrae los datos y podrás revisarlos y completarlos.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
