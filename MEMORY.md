@@ -19,7 +19,7 @@
 | Owner uid (RLS) | `dfaf6414-958a-4768-9d92-a57493181524` |
 | n8n | `https://n8n.benicolo.com` · MCP `.../mcp-server/http` (token en `opencode.json`) |
 | Credenciales n8n | `InsForge` (httpHeaderAuth), `Gmail account` (gmailOAuth2) y `Enable Banking RSA` (crypto, app id `4211076d-…`) |
-| Modelo IA (OpenRouter) | `deepseek/deepseek-v4.1-flash` (visión); API key **incrustada** en `n8n/ticket-photo.js` (cabecera `Authorization` del nodo `AI Extract`) |
+| Modelo IA (OpenRouter) | `deepseek/deepseek-v4.1-flash` (visión); API key en la credencial n8n **`OpenRouter`** (Header Auth) que usa el nodo `AI Extract` (ya **no** se incrusta en el repo) |
 | Vercel | proyecto `insforge` (`prj_20w2s24Z0CefOQSsc0a4J9xCfvon`) · team `team_m0rOwtLX4SM9C2Sw1gUwl8HT` |
 | Alias de producción | `https://insforge-mu.vercel.app` |
 | Dokploy (backend) | `https://dokploy.benicolo.com` · compose `insforge` (`MSEEh5zwTE_ov2dIjKjM0`) |
@@ -494,10 +494,11 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   imagen. El móvil vuelve a funcionar en **Expo Go** (sin módulo nativo). El detalle sigue mostrando
   "Texto OCR": ahora contiene la transcripción que devuelve el modelo.
 - **Problemas y solución**:
-  - El **Model Gateway de InsForge no tiene key de OpenRouter** configurada (`ai setup` falla); se
-    incrustó una **API key propia de OpenRouter** en el workflow (cabecera `Authorization` del nodo
-    `AI Extract`), igual que ya se hace con la del InsForge. Así se evita la credencial (el MCP de n8n
-    no asigna credenciales).
+  - El **Model Gateway de InsForge no tiene key de OpenRouter** configurada (`ai setup` falla); primero se
+    incrustó una API key propia en el workflow, pero GitHub **bloqueó el push** por push protection. Se
+    retiró del repo: ahora el nodo `AI Extract` usa la **credencial n8n `OpenRouter`** (Header Auth). El
+    workflow desplegado sigue llevando la key; si se redespliega desde el repo hay que **crear/asignar la
+    credencial `OpenRouter`** en n8n.
 - **Verificación**: workflow `validate` OK y **publicado**; **prueba end-to-end** (POST al webhook con
   una imagen de ticket) → la IA extrajo tienda, nº ticket, fecha, subtotal, total **y las 5 líneas**
   correctamente; la imagen quedó en `receipts`. Web `tsc` + `next build` OK (`/fotos`); móvil `tsc` +
@@ -607,6 +608,18 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
     al vincular/desvincular (los links se siguen guardando al instante).
 - **Verificación**: web `tsc` + `next lint` + `next build` OK.
 - **Commit**: (pendiente)
+
+### Sesión AF — Push y retirada de la API key del repo
+- **Objetivo**: subir los commits locales.
+- **Problema**: GitHub rechazó el push (**push protection**) por la **API key de OpenRouter** incrustada
+  en `n8n/ticket-photo.js` (commit `3d7ade1`).
+- **Solución**: se retiró la key del repo (el nodo `AI Extract` usa la credencial n8n **`OpenRouter`**,
+  Header Auth) y se **reescribieron los 3 commits locales en uno** (`5c7abfa`) sin el secreto; push OK
+  (`bd8aba7..5c7abfa main -> main`).
+- **Pendiente**: crear/asignar la credencial `OpenRouter` en n8n si se **redespliega** el workflow desde
+  el repo (el workflow desplegado actual conserva la key). **Rotar** la key de OpenRouter (GitHub la vio
+  en el push bloqueado).
+- **Commit**: `5c7abfa` (+ este registro).
 
 ---
 
