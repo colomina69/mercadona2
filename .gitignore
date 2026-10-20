@@ -16,3 +16,7 @@
 
 # dev logs
 **/dev.log
+
+# secretos locales (build de n8n)
+**/.env.local
+n8n/.env

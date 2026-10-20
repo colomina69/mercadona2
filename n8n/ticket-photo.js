@@ -1,4 +1,4 @@
-import { workflow, node, trigger, ifElse, newCredential } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, ifElse } from '@n8n/workflow-sdk';
 
 const INS_FORGE_BASE = 'https://insforge.benicolo.com';
 const BUCKET = 'receipts';
@@ -9,6 +9,9 @@ const INS_FORGE_HEADERS = { parameters: [{ name: 'Authorization', value: 'Bearer
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4.1-flash';
+// Se inyecta en el build desde n8n/.env.local (scripts/n8n-build.js). Nunca se versiona la key real.
+const OPENROUTER_API_KEY = '__OPENROUTER_API_KEY__';
+const OPENROUTER_HEADERS = { parameters: [{ name: 'Authorization', value: 'Bearer ' + OPENROUTER_API_KEY }] };
 
 const webhookTrigger = trigger({
   type: 'n8n-nodes-base.webhook',
@@ -148,11 +151,10 @@ const aiExtract = node({
     parameters: {
       method: 'POST',
       url: OPENROUTER_URL,
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
       sendHeaders: true,
       headerParameters: {
         parameters: [
+          ...OPENROUTER_HEADERS.parameters,
           { name: 'HTTP-Referer', value: INS_FORGE_BASE },
           { name: 'X-Title', value: 'Mis Gastos - Ticket Photo' }
         ]
@@ -162,7 +164,6 @@ const aiExtract = node({
       jsonBody: "={{ $('Build & Encode').first().json.aiBody }}",
       options: { timeout: 60000 }
     },
-    credentials: { httpHeaderAuth: newCredential('OpenRouter') },
     retryOnFail: true,
     maxTries: 2,
     waitBetweenTries: 3000,
