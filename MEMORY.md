@@ -43,7 +43,7 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `/clasificar`, `/categorias`, `/facturas`, `/facturas/[id]`, `/contratos`, `/contratos/[id]`,
   `/combustible`, `/combustible/[id]`, `/proveedores`, `/proveedores/[id]`, `/fotos`,
   `/fotos/[id]`, `/login`.
-- **App móvil** (`mobile/`): **Expo SDK 57 + Expo Router** (rutas en `mobile/src/app/`),
+- **App móvil** (`mobile/`): **Expo SDK 58 (React Native 0.88) + Expo Router** (rutas en `mobile/src/app/`),
   TypeScript. Usa `@insforge/sdk` con **cliente admin** y **sin login**; estado y formateo en
   `mobile/src/lib`, UI en `mobile/src/components`. Se arranca con `npx expo start`. Rutas:
   `/`, `/mercadona`, `/mercadona/tickets[/[id]]`, `/mercadona/productos[/[name]]`,
@@ -51,8 +51,9 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
   `/proveedores[/[id]]`, `/fotos[/[id]]`,
   `/cuenta/movimientos[/[id]]`, `/cuenta/clasificar`, `/cuenta/vincular/[id]`, `/cuenta/categorias`, `/sorteos`, `/sorteos/nuevo`,
   `/sorteos/editar/[id]`, `/sorteos/[id]`, `/sorteos/abonados[/nuevo|/[id]]`, `/pdf`.
-  Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset`, `react-native-webview`,
-  `expo-image-picker` (cámara/galería) y `expo-text-extractor` (OCR on-device, requiere **dev build/APK**);
+  Módulos extra: `expo-file-system`, `expo-sharing`, `expo-asset`, `expo-system-ui`,
+  `react-native-webview` y `expo-image-picker` (cámara/galería); el OCR on-device
+  (`expo-text-extractor`) se **eliminó** (los tickets por foto usan visión IA);
   assets `assets/pdfjs/*.pdfjs` (PDF.js) para el visor offline.
 
 ---
@@ -621,6 +622,38 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Pendiente**: **rotar** la key de OpenRouter (GitHub la vio en el push bloqueado); al rotarla,
   actualizar `n8n/.env.local`.
 - **Commit**: `5c7abfa` (+ este registro).
+
+### Sesión AG — PRD del proyecto
+- **Objetivo**: documentar el producto en un `prd.md` (requisitos, alcance, métricas y roadmap).
+- **Cambios**: nuevo `prd.md` en la raíz con visión, usuarios, casos de uso, módulos (Mercadona,
+  Iberdrola, Combustible, Proveedores, Tickets por foto + IA, Cuenta, Sorteos), flujos, requisitos
+  funcionales y no funcionales, arquitectura, modelo de datos, integraciones, métricas, riesgos,
+  roadmap, criterios de aceptación, glosario y estado de implementación.
+- **Notas**: refleja el estado actual (subcategorías, vínculo de tickets por foto, regla de completitud
+  y guardado explícito). Los secretos quedan fuera del repo (key de OpenRouter inyectada en build).
+- **Commit**: (pendiente)
+
+### Sesión AH — Migración a Expo SDK 58
+- **Objetivo**: el **Expo Go del móvil se actualizó a SDK 58** y el proyecto era SDK 57 → incompatible.
+- **Cambios**: `expo` 57 → **58.0.21** (React Native 0.86 → **0.88**, React **19.3**), `expo install --fix`
+  (router 58, file-system, sharing, image-picker, etc.), **`expo-system-ui`** añadido y
+  **`expo-text-extractor` eliminado** (el OCR ya no se usa). `android/` regenerado con
+  `expo prebuild --clean`. `expo-doctor` **20/20**, `tsc` OK, `expo export` OK.
+- **APK**: reconstruido en `C:\mg58` (build limpio SDK 58 con R8) → `mobile/mis-gastos.apk` (~78 MB).
+- **Nota**: reiniciar Metro (`npx expo start -c`) y recargar en **Expo Go SDK 58**.
+- **Commit**: (pendiente)
+
+### Sesión AI — Workflow n8n unificado (generado y validado, sin desplegar)
+- **Objetivo**: unificar todas las ingestas en **un solo workflow** de n8n.
+- **Cambios**: `scripts/n8n-ingesta-build.js` genera `n8n/ingesta.js` combinando:
+  - **1 Gmail Trigger + Switch** por remitente (Mercadona, Iberdrola, Waylet, Proveedores).
+  - **2 Webhooks** (`bank-statements`, `ticket-photo`, mismas rutas).
+  - **4 Manual Triggers** para los backfills.
+  Renombra nodos/constantes con prefijo por dominio, inyecta parsers inline y mantiene
+  `__OPENROUTER_API_KEY__` (inyección en build). Enable Banking queda **fuera** (otro proyecto).
+- **Estado**: `validate` OK (**92 nodos**). **Pendiente**: despublicar los webhooks antiguos, crear/
+  publicar el nuevo workflow, probar y archivar los antiguos.
+- **Commit**: (pendiente)
 
 ---
 
