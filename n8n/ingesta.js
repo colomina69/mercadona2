@@ -5,6 +5,8 @@ import { workflow, node, trigger, newCredential, ifElse, switchCase } from '@n8n
 // No editar a mano: modifica los workflows fuente o este generador y regenera.
 // ============================================================================
 
+const INS_FORGE_HEADERS = { parameters: [{ name: 'Authorization', value: 'Bearer ik_06af335eeadbdfe2f6c12fa82c1d152c512a516af32ba808a37bfbfdb6ee0900' }] };
+
 const gmailTrigger = trigger({
   type: 'n8n-nodes-base.gmailTrigger',
   version: 1.3,
@@ -312,14 +314,13 @@ const merc_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: merc_INS_FORGE_BASE + '/api/database/rpc/mercadona_upsert_ticket',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -368,8 +369,8 @@ const merc_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + merc_INS_FORGE_BASE + '/api/storage/buckets/' + merc_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: {
@@ -379,7 +380,6 @@ const merc_uploadPdf = node({
       },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -470,14 +470,13 @@ const ibe_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: ibe_INS_FORGE_BASE + '/api/database/rpc/iberdrola_upsert_invoice',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -509,8 +508,8 @@ const ibe_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + ibe_INS_FORGE_BASE + '/api/storage/buckets/' + ibe_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: {
@@ -520,7 +519,6 @@ const ibe_uploadPdf = node({
       },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -618,14 +616,13 @@ const way_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: way_INS_FORGE_BASE + '/api/database/rpc/waylet_upsert_ticket',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -653,14 +650,13 @@ const way_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + way_INS_FORGE_BASE + '/api/storage/buckets/' + way_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' }] },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -877,14 +873,13 @@ const sup_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: sup_INS_FORGE_BASE + '/api/database/rpc/supplier_invoice_upsert',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -932,14 +927,13 @@ const sup_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + sup_INS_FORGE_BASE + '/api/storage/buckets/' + sup_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' }] },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -1096,8 +1090,8 @@ const bank_uploadTxt = node({
     parameters: {
       method: 'PUT',
       url: '=' + bank_INS_FORGE_BASE + '/api/storage/buckets/' + bank_BUCKET + '/objects/{{ encodeURIComponent($json.raw_key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: {
@@ -1107,7 +1101,6 @@ const bank_uploadTxt = node({
       },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -1125,14 +1118,13 @@ const bank_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: bank_INS_FORGE_BASE + '/api/database/rpc/bank_upsert_transactions',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: "={{ JSON.stringify({ p_rows: $('bank – Parse TXT').first().json.rows, p_source_file: $('bank – Parse TXT').first().json.source_file, p_raw_key: $('bank – Parse TXT').first().json.raw_key }) }}",
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -1497,11 +1489,10 @@ const mercB_listMessageIds = node({
     parameters: {
       method: 'POST',
       url: mercB_INS_FORGE_BASE + '/api/database/rpc/mercadona_ticket_message_ids',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [420, 5200]
   },
   output: [{ ids: ['18f0000000000000'] }]
@@ -1515,11 +1506,10 @@ const mercB_listObjects = node({
     parameters: {
       method: 'GET',
       url: mercB_INS_FORGE_BASE + '/api/storage/buckets/' + mercB_BUCKET + '/objects?limit=1000',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [640, 5200]
   },
   output: [{ data: [{ key: 'mercadona/example/ticket.pdf' }] }]
@@ -1809,14 +1799,13 @@ const mercB_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: mercB_INS_FORGE_BASE + '/api/database/rpc/mercadona_upsert_ticket',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -1889,8 +1878,8 @@ const mercB_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + mercB_INS_FORGE_BASE + '/api/storage/buckets/' + mercB_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: {
@@ -1900,7 +1889,6 @@ const mercB_uploadPdf = node({
       },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -1928,11 +1916,10 @@ const ibeB_listMessageIds = node({
     parameters: {
       method: 'POST',
       url: ibeB_INS_FORGE_BASE + '/api/database/rpc/iberdrola_invoice_message_ids',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [420, 6000]
   },
   output: [{ ids: ['18f0000000000000'] }]
@@ -1946,11 +1933,10 @@ const ibeB_listObjects = node({
     parameters: {
       method: 'GET',
       url: ibeB_INS_FORGE_BASE + '/api/storage/buckets/' + ibeB_BUCKET + '/objects?limit=1000',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [640, 6000]
   },
   output: [{ data: [{ key: 'iberdrola/example/factura.pdf' }] }]
@@ -2047,14 +2033,13 @@ const ibeB_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: ibeB_INS_FORGE_BASE + '/api/database/rpc/iberdrola_upsert_invoice',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -2106,14 +2091,13 @@ const ibeB_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + ibeB_INS_FORGE_BASE + '/api/storage/buckets/' + ibeB_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' }] },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -2141,11 +2125,10 @@ const wayB_listMessageIds = node({
     parameters: {
       method: 'POST',
       url: wayB_INS_FORGE_BASE + '/api/database/rpc/waylet_ticket_message_ids',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [420, 6800]
   },
   output: [{ ids: ['18f0000000000000'] }]
@@ -2159,11 +2142,10 @@ const wayB_listObjects = node({
     parameters: {
       method: 'GET',
       url: wayB_INS_FORGE_BASE + '/api/storage/buckets/' + wayB_BUCKET + '/objects?limit=1000',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [640, 6800]
   },
   output: [{ data: [{ key: 'waylet/example.pdf' }] }]
@@ -2276,14 +2258,13 @@ const wayB_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: wayB_INS_FORGE_BASE + '/api/database/rpc/waylet_upsert_ticket',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -2335,14 +2316,13 @@ const wayB_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + wayB_INS_FORGE_BASE + '/api/storage/buckets/' + wayB_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' }] },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,
@@ -2488,11 +2468,10 @@ const supB_listMessageIds = node({
     parameters: {
       method: 'POST',
       url: supB_INS_FORGE_BASE + '/api/database/rpc/supplier_invoice_message_ids',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [420, 7600]
   },
   output: [{ ids: ['18f0000000000000'] }]
@@ -2506,11 +2485,10 @@ const supB_listObjects = node({
     parameters: {
       method: 'GET',
       url: supB_INS_FORGE_BASE + '/api/storage/buckets/' + supB_BUCKET + '/objects?limit=1000',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     position: [640, 7600]
   },
   output: [{ data: [{ key: 'suppliers/example/factura.pdf' }] }]
@@ -2618,14 +2596,13 @@ const supB_dbUpsert = node({
     parameters: {
       method: 'POST',
       url: supB_INS_FORGE_BASE + '/api/database/rpc/supplier_invoice_upsert',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       specifyBody: 'json',
       jsonBody: '={{ JSON.stringify($json.payload) }}',
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 3,
     waitBetweenTries: 2000,
@@ -2697,14 +2674,13 @@ const supB_uploadPdf = node({
     parameters: {
       method: 'PUT',
       url: '=' + supB_INS_FORGE_BASE + '/api/storage/buckets/' + supB_BUCKET + '/objects/{{ encodeURIComponent($json.key) }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: INS_FORGE_HEADERS,
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' }] },
       options: {}
     },
-    credentials: { httpHeaderAuth: newCredential('InsForge') },
     retryOnFail: true,
     maxTries: 4,
     waitBetweenTries: 3000,

@@ -643,16 +643,20 @@ migraciones en `migrations/` y especificaciones SDD en `specs/`.
 - **Nota**: reiniciar Metro (`npx expo start -c`) y recargar en **Expo Go SDK 58**.
 - **Commit**: (pendiente)
 
-### Sesión AI — Workflow n8n unificado (generado y validado, sin desplegar)
+### Sesión AI — Workflow n8n unificado (desplegado)
 - **Objetivo**: unificar todas las ingestas en **un solo workflow** de n8n.
 - **Cambios**: `scripts/n8n-ingesta-build.js` genera `n8n/ingesta.js` combinando:
   - **1 Gmail Trigger + Switch** por remitente (Mercadona, Iberdrola, Waylet, Proveedores).
   - **2 Webhooks** (`bank-statements`, `ticket-photo`, mismas rutas).
   - **4 Manual Triggers** para los backfills.
-  Renombra nodos/constantes con prefijo por dominio, inyecta parsers inline y mantiene
+  Renombra nodos/constantes con prefijo por dominio, inyecta parsers inline, **inlinea la auth de
+  InsForge** en los nodos HTTP (evita asignación manual de ~31 nodos) y mantiene
   `__OPENROUTER_API_KEY__` (inyección en build). Enable Banking queda **fuera** (otro proyecto).
-- **Estado**: `validate` OK (**92 nodos**). **Pendiente**: despublicar los webhooks antiguos, crear/
-  publicar el nuevo workflow, probar y archivar los antiguos.
+- **Estado**: `validate` OK (**92 nodos**); workflow **`abPjBqLMVeyOS4T7`** **activo** (Gmail
+  auto-asignado; se archivó el intento previo `KK4k0gvLNVl5I757`). **Probado end-to-end**: webhook
+  ticket por foto (extracción correcta) y webhook de extracto bancario (insert 1). Antiguos workflows del
+  proyecto **desactivados** (Mercadona New, Iberdrola, Waylet, Proveedores, Banco, Ticket Photo);
+  backfills inactivos. Sigue activo un `MERCADONA` viejo (`j1WsfPmX8WlDc3Yf`, ajeno a este proyecto).
 - **Commit**: (pendiente)
 
 ---
@@ -724,6 +728,11 @@ Políticas de lectura en `storage.objects` para `mercadona`, `iberdrola`, `wayle
 ---
 
 ## 5. Workflows n8n
+
+> **Workflow único activo:** `n8n/ingesta.js` → **Mis Gastos — Ingesta** (id `abPjBqLMVeyOS4T7`):
+> 1 Gmail Trigger + Switch + 2 webhooks + 4 backfills manuales. Se genera con
+> `node scripts/n8n-ingesta-build.js`. Los ficheros de la tabla quedan como **legacy** (desactivados)
+> y se conservan como fuente de las ramas/parsers.
 
 | Fichero | Trigger | Función |
 |---|---|---|

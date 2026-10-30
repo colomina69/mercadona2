@@ -17,6 +17,11 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const N8N = path.join(ROOT, 'n8n');
 
+// Reutiliza la key admin de InsForge que ya vive en bank-statements.js para inlinear
+// la autenticación de los nodos HTTP (el MCP no auto-asigna credenciales en HTTP nodes).
+const INS_FORGE_KEY = (fs.readFileSync(path.join(N8N, 'ticket-photo.js'), 'utf8').match(/const INS_FORGE_API_KEY = '([^']+)'/) || [])[1];
+if (!INS_FORGE_KEY) throw new Error('No se encontró INS_FORGE_API_KEY en ticket-photo.js');
+
 const SOURCES = [
   {
     file: 'mercadona-tickets-new.js',
@@ -129,6 +134,13 @@ function transform(source, offset) {
   // Separar verticalmente las ramas
   body = body.replace(/position: \[(\d+), (\d+)\]/g, (_, x, y) => `position: [${x}, ${Number(y) + offset}]`);
 
+  // Inlinear la credencial de InsForge dentro de `parameters` (evita asignación manual)
+  body = body.replace(
+    /authentication: 'genericCredentialType',\s*\n\s*genericAuthType: 'httpHeaderAuth',/g,
+    'sendHeaders: true,\n      headerParameters: INS_FORGE_HEADERS,',
+  );
+  body = body.replace(/\n\s*credentials: \{ httpHeaderAuth: newCredential\('InsForge'\) \},/g, '');
+
   // Extraer solo la composición (.add(...)...) del export original
   const addIdx = chain.indexOf('.add(');
   if (addIdx < 0) throw new Error(`${source.file}: no se encontró ".add(" en el export`);
@@ -177,6 +189,8 @@ const HEADER = `import { workflow, node, trigger, newCredential, ifElse, switchC
 // WORKFLOW ÚNICO DE INGESTA — generado por scripts/n8n-ingesta-build.js
 // No editar a mano: modifica los workflows fuente o este generador y regenera.
 // ============================================================================
+
+const INS_FORGE_HEADERS = { parameters: [{ name: 'Authorization', value: 'Bearer ${INS_FORGE_KEY}' }] };
 
 const gmailTrigger = trigger({
   type: 'n8n-nodes-base.gmailTrigger',
